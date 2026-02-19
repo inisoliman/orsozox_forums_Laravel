@@ -1,0 +1,22 @@
+User-agent: *
+Allow: /forums/public/
+
+# حماية المسارات الحساسة
+Disallow: /forums/admin/
+Disallow: /forums/api/
+Disallow: /forums/public/login
+Disallow: /forums/public/search?
+Disallow: /forums/storage/
+
+# منع زحف ملفات النظام
+Disallow: /*.php$
+Disallow: /forums/.env
+Disallow: /forums/vendor/
+
+# السماح لـ Googlebot بتصحيح CSS/JS
+User-agent: Googlebot
+Allow: /forums/public/css/
+Allow: /forums/public/js/
+
+# خريطة الموقع
+Sitemap: https://orsozox.com/forums/public/sitemap.xml
