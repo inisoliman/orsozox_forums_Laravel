@@ -1,22 +1,26 @@
 User-agent: *
-Allow: /forums/public/
+Allow: /forums/
 
-# حماية المسارات الحساسة
+# Protect sensitive paths
 Disallow: /forums/admin/
 Disallow: /forums/api/
 Disallow: /forums/public/login
 Disallow: /forums/public/search?
-Disallow: /forums/storage/
+Disallow: /forums/storage/framework/
+Disallow: /forums/storage/logs/
 
-# منع زحف ملفات النظام
-Disallow: /*.php$
+# Prevent crawling of external redirects and internal system files
+Disallow: /forums/public/redirector.php
+Disallow: /forums/redirector.php
+Disallow: /*?replytocom=
 Disallow: /forums/.env
 Disallow: /forums/vendor/
 
-# السماح لـ Googlebot بتصحيح CSS/JS
+# Allow Googlebot to crawl essential assets for rendering
 User-agent: Googlebot
 Allow: /forums/public/css/
 Allow: /forums/public/js/
+Allow: /forums/storage/app/public/
 
-# خريطة الموقع
-Sitemap: https://orsozox.com/forums/public/sitemap.xml
+# Sitemap index
+Sitemap: https://orsozox.com/forums/sitemap.xml

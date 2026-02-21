@@ -10,31 +10,33 @@
         {{-- Breadcrumb --}}
         <div class="breadcrumb-modern">
             <nav>
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}"><i class="bi bi-house"></i> الرئيسية</a></li>
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
                     <li class="breadcrumb-item active">البحث</li>
                 </ol>
             </nav>
         </div>
 
         {{-- Search Form --}}
-        <div class="search-box">
-            <h2 style="font-weight:700;margin-bottom:1rem;text-align:center">
-                <i class="bi bi-search text-accent"></i> البحث في المنتدى
-            </h2>
+        <div class="search-box glass-panel p-4">
+            <h1 class="h3 fw-bold mb-4 text-center">
+                <i class="fas fa-search text-accent"></i> البحث في المنتدى
+            </h1>
 
             <form action="{{ route('search.results') }}" method="GET">
                 <div class="row g-3 align-items-end">
                     <div class="col-lg-7">
-                        <label class="form-label text-muted-custom">كلمة البحث</label>
-                        <div class="search-input-group">
-                            <input type="text" name="q" class="form-control form-control-dark"
-                                placeholder="ابحث عن موضوع أو محتوى..." value="{{ $query ?? '' }}" required minlength="2"
-                                maxlength="100">
+                        <label class="form-label text-muted-custom small fw-bold">كلمة البحث</label>
+                        <div class="search-input-group position-relative">
+                            <i class="fas fa-search position-absolute top-50 translate-middle-y text-muted"
+                                style="right:15px"></i>
+                            <input type="text" name="q" class="form-control form-control-dark ps-5"
+                                style="padding-right: 40px" placeholder="ابحث عن موضوع أو محتوى..."
+                                value="{{ $query ?? '' }}" required minlength="2" maxlength="100">
                         </div>
                     </div>
                     <div class="col-lg-3">
-                        <label class="form-label text-muted-custom">نوع البحث</label>
+                        <label class="form-label text-muted-custom small fw-bold">نوع البحث</label>
                         <select name="type" class="form-select form-control-dark">
                             <option value="threads" {{ ($type ?? 'threads') == 'threads' ? 'selected' : '' }}>في عناوين
                                 المواضيع</option>
@@ -43,7 +45,7 @@
                     </div>
                     <div class="col-lg-2">
                         <button type="submit" class="btn btn-accent w-100">
-                            <i class="bi bi-search ms-1"></i> بحث
+                            <i class="fas fa-search ms-1"></i> بحث
                         </button>
                     </div>
                 </div>
@@ -53,7 +55,7 @@
         {{-- Search Results --}}
         @if(isset($results))
             <div class="section-header">
-                <div class="icon"><i class="bi bi-list-check"></i></div>
+                <div class="icon"><i class="fas fa-list-check"></i></div>
                 <h2>نتائج البحث</h2>
                 <span class="text-muted-custom" style="font-size:0.85rem">{{ $results->total() }} نتيجة</span>
             </div>
@@ -63,24 +65,24 @@
                 @forelse($results as $thread)
                     <div class="thread-item animate-in">
                         <div class="thread-icon">
-                            <i class="bi bi-chat-text"></i>
+                            <i class="fas fa-comment-dots"></i>
                         </div>
                         <div class="thread-content">
                             <div class="thread-title">
                                 <a href="{{ $thread->url }}">{{ $thread->title }}</a>
                             </div>
                             <div class="thread-meta">
-                                <span><i class="bi bi-person"></i>
+                                <span><i class="fas fa-user-circle"></i>
                                     {{ $thread->author->username ?? $thread->postusername ?? 'زائر' }}</span>
-                                <span><i class="bi bi-folder"></i> {{ $thread->forum->title ?? '' }}</span>
-                                <span><i class="bi bi-clock"></i> {{ $thread->created_date->diffForHumans() }}</span>
-                                <span><i class="bi bi-eye"></i> {{ number_format($thread->views) }}</span>
+                                <span><i class="fas fa-folder"></i> {{ $thread->forum->title ?? '' }}</span>
+                                <span><i class="fas fa-clock"></i> {{ $thread->created_date->diffForHumans() }}</span>
+                                <span><i class="fas fa-eye"></i> {{ number_format($thread->views) }}</span>
                             </div>
                         </div>
                     </div>
                 @empty
                     <div class="empty-state">
-                        <i class="bi bi-search"></i>
+                        <i class="fas fa-search"></i>
                         <p>لم يتم العثور على نتائج لـ "{{ $query }}"</p>
                         <small class="text-muted-custom">حاول استخدام كلمات بحث مختلفة</small>
                     </div>
@@ -110,7 +112,7 @@
                     </div>
                 @empty
                     <div class="empty-state">
-                        <i class="bi bi-search"></i>
+                        <i class="fas fa-search"></i>
                         <p>لم يتم العثور على نتائج لـ "{{ $query }}"</p>
                     </div>
                 @endforelse

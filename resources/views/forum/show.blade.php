@@ -19,8 +19,8 @@
         {{-- Breadcrumb --}}
         <div class="breadcrumb-modern">
             <nav>
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{{ route('home') }}"><i class="bi bi-house"></i> الرئيسية</a></li>
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{{ route('home') }}"><i class="fas fa-home"></i> الرئيسية</a></li>
                     @if($forum->parent)
                         <li class="breadcrumb-item"><a href="{{ $forum->parent->url }}">{{ $forum->parent->title }}</a></li>
                     @endif
@@ -30,47 +30,55 @@
         </div>
 
         {{-- Forum Header --}}
-        <div class="card-modern mb-4">
-            <div class="card-body">
-                <div class="d-flex align-items-center gap-3">
-                    <div class="forum-card-icon" style="margin-bottom:0">
-                        <i class="bi bi-folder2-open"></i>
-                    </div>
-                    <div>
-                        <h1 style="font-size:1.5rem;font-weight:700;margin:0">{{ $forum->title }}</h1>
-                        @if($forum->description)
-                            <p class="text-muted-custom mb-0 mt-1">{{ $forum->description }}</p>
-                        @endif
-                    </div>
+        <div class="glass-panel mb-4">
+            <div class="p-4 d-flex align-items-center gap-3">
+                <div class="forum-icon-wrapper" style="width:60px;height:60px;font-size:1.8rem">
+                    <i class="fas fa-folder-open"></i>
+                </div>
+                <div>
+                    <h1 class="h3 fw-bold mb-1">{{ $forum->title }}</h1>
+                    @if($forum->description)
+                        <p class="text-muted mb-0">{{ strip_tags($forum->description) }}</p>
+                    @endif
                 </div>
             </div>
         </div>
 
         {{-- الأقسام الفرعية --}}
         @if($forum->children->count())
-            <div class="section-header">
-                <div class="icon"><i class="bi bi-folder"></i></div>
-                <h2>الأقسام الفرعية</h2>
-            </div>
-            <div class="row g-3 mb-4">
-                @foreach($forum->children as $child)
-                    <div class="col-md-4">
-                        <div class="forum-card">
-                            <h5 class="forum-card-title">
-                                <a href="{{ $child->url }}"><i class="bi bi-folder2 ms-1"></i> {{ $child->title }}</a>
-                            </h5>
-                            <div class="forum-card-count">
-                                <i class="bi bi-chat-text"></i> {{ number_format($child->threads_count ?? 0) }} موضوع
+            <div class="glass-panel mb-4 p-4">
+                <div class="section-header mb-3">
+                    <div class="icon"><i class="fas fa-folder-tree"></i></div>
+                    <h2 class="h5 mb-0">الأقسام الفرعية</h2>
+                </div>
+                <div class="sub-forum-list">
+                    @foreach($forum->children as $child)
+                        <div class="sub-forum-item justify-content-between">
+                            <a href="{{ $child->url }}"
+                                class="d-flex align-items-center text-decoration-none text-reset flex-grow-1">
+                                <i class="fas fa-folder-open sub-forum-icon ms-2 fs-5 text-accent"></i>
+                                <div>
+                                    <span class="fw-bold d-block">{{ $child->title }}</span>
+                                    @if($child->description)
+                                        <small class="text-muted">{{ Str::limit(strip_tags($child->description), 60) }}</small>
+                                    @endif
+                                </div>
+                            </a>
+                            <div class="d-none d-md-flex align-items-center gap-3 text-muted small">
+                                <span title="المواضيع"><i class="fas fa-file-alt me-1"></i>
+                                    {{ number_format($child->threads_count ?? 0) }}</span>
+                                <span title="المشاركات"><i class="fas fa-comment me-1"></i>
+                                    {{ number_format($child->posts_count ?? $child->replycount ?? 0) }}</span>
                             </div>
                         </div>
-                    </div>
-                @endforeach
+                    @endforeach
+                </div>
             </div>
         @endif
 
         {{-- المواضيع --}}
         <div class="section-header">
-            <div class="icon"><i class="bi bi-list-ul"></i></div>
+            <div class="icon"><i class="fas fa-list-ul"></i></div>
             <h2>المواضيع</h2>
             <span class="text-muted-custom" style="font-size:0.85rem">{{ $threads->total() }} موضوع</span>
         </div>
@@ -78,22 +86,23 @@
         @forelse($threads as $thread)
             <div class="thread-item animate-in">
                 <div class="thread-icon {{ $thread->open ? '' : 'locked' }}">
-                    <i class="bi {{ $thread->open ? 'bi-chat-text' : 'bi-lock' }}"></i>
+                    <i class="fas {{ $thread->open ? 'fa-comment-alt' : 'fa-lock' }}"></i>
                 </div>
                 <div class="thread-content">
                     <div class="thread-title">
-                        <a href="{{ $thread->url }}">{{ $thread->title }}</a>
+                        <a href="{{ $thread->url }}">{{ strip_tags($thread->title) }}</a>
                     </div>
                     <div class="thread-meta">
                         <span>
-                            <i class="bi bi-person"></i>
+                            <i class="fas fa-user-circle"></i>
                             <a href="{{ route('user.show', $thread->postuserid) }}" class="text-muted-custom">
-                                {{ $thread->author->username ?? $thread->postusername ?? 'زائر' }}
+                                {{ strip_tags($thread->author->username ?? $thread->postusername ?? 'زائر') }}
                             </a>
                         </span>
-                        <span><i class="bi bi-clock"></i> {{ $thread->created_date->diffForHumans() }}</span>
+                        <span><i class="fas fa-clock"></i> {{ $thread->created_date->diffForHumans() }}</span>
                         @if($thread->lastposter)
-                            <span><i class="bi bi-arrow-return-left"></i> آخر رد: {{ $thread->lastposter }}</span>
+                            <span class="d-none d-sm-inline-flex"><i class="fas fa-reply"></i> آخر رد:
+                                {{ strip_tags($thread->lastposter) }}</span>
                         @endif
                     </div>
                 </div>
@@ -110,7 +119,7 @@
             </div>
         @empty
             <div class="empty-state">
-                <i class="bi bi-inbox"></i>
+                <i class="fas fa-inbox"></i>
                 <p>لا توجد مواضيع في هذا القسم</p>
             </div>
         @endforelse

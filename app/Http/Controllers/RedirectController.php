@@ -15,15 +15,29 @@ class RedirectController extends Controller
      */
     public function showThread(Request $request)
     {
-        $id = $request->input('t') ?? $request->input('p');
-        if (!$id)
-            abort(404);
+        // Case 1: Post ID (p) provided
+        if ($request->has('p')) {
+            $postId = $request->input('p');
+            $post = \App\Models\Post::with('thread')->find($postId);
 
-        $thread = Thread::find($id);
-        if (!$thread)
-            abort(404);
+            if ($post && $post->thread) {
+                // Determine page number if needed, but for now redirect to thread start
+                // or ideally calculate page: ceil($post->position / $perPage)
+                return redirect($post->thread->url, 301);
+            }
+        }
 
-        return redirect($thread->url, 301);
+        // Case 2: Thread ID (t) provided
+        $id = $request->input('t');
+
+        if ($id) {
+            $thread = Thread::find($id);
+            if ($thread) {
+                return redirect($thread->url, 301);
+            }
+        }
+
+        abort(404);
     }
 
     /**

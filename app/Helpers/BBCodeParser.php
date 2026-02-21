@@ -18,73 +18,100 @@ class BBCodeParser
         // تحويل الأسطر الجديدة
         $text = nl2br($text);
 
-        // === BBCode Tags ===
-        // نستخدم حلقة تكرار لمعالجة التداخل (Nested Tags)
-        // مثلاً: [center][color=red]...[/color][/center]
+        // === Unbounded BBCode Tags (Styles and Formatting) ===
+        // Bold
+        $text = str_ireplace('[b]', '<strong>', $text);
+        $text = str_ireplace('[/b]', '</strong>', $text);
 
+        // Italic
+        $text = str_ireplace('[i]', '<em>', $text);
+        $text = str_ireplace('[/i]', '</em>', $text);
+
+        // Underline
+        $text = str_ireplace('[u]', '<u>', $text);
+        $text = str_ireplace('[/u]', '</u>', $text);
+
+        // Strike
+        $text = str_ireplace('[s]', '<del>', $text);
+        $text = str_ireplace('[/s]', '</del>', $text);
+
+        // Color
+        $text = preg_replace('/\[color=(?:&quot;|&#039;|["\'])?([^\]]+?)(?:&quot;|&#039;|["\'])?\]/i', '<span style="color:$1">', $text);
+        $text = str_ireplace('[/color]', '</span>', $text);
+
+        // Size
+        $text = preg_replace_callback('/\[size=(?:&quot;|&#039;|["\'])?([0-9a-zA-Z]+)(?:&quot;|&#039;|["\'])?\]/i', function ($m) {
+            // استخدام rem بدلاً من em لتجنب تضاعف الحجم عند التداخل
+            $sizes = [1 => '0.8rem', 2 => '0.9rem', 3 => '1rem', 4 => '1.2rem', 5 => '1.5rem', 6 => '1.8rem', 7 => '2.2rem'];
+            $sizeVal = trim($m[1]);
+
+            if (is_numeric($sizeVal)) {
+                $num = (int) $sizeVal;
+                if ($num > 7)
+                    $num = 7; // الحد الأقصى
+                $size = $sizes[$num] ?? '1rem';
+            } else {
+                $size = htmlspecialchars($sizeVal);
+                // حماية من الأحجام الضخمة المكتوبة يدوياً
+                if (preg_match('/^(\d+)(px|pt|em|rem|%)$/i', $size, $matches)) {
+                    $val = (float) $matches[1];
+                    if (strtolower($matches[2]) === 'px' && $val > 35)
+                        $size = '35px';
+                    if (strtolower($matches[2]) === 'em' && $val > 2.5)
+                        $size = '2.5rem';
+                    if (strtolower($matches[2]) === 'rem' && $val > 2.5)
+                        $size = '2.5rem';
+                }
+            }
+            return '<span style="font-size:' . $size . ' !important;">';
+        }, $text);
+        $text = str_ireplace('[/size]', '</span>', $text);
+
+        // Font
+        $text = preg_replace('/\[font=(?:&quot;|&#039;|["\'])?([^\]]+?)(?:&quot;|&#039;|["\'])?\]/i', '<span style="font-family:\'$1\'">', $text);
+        $text = str_ireplace('[/font]', '</span>', $text);
+
+        // Align
+        $text = preg_replace('/\[align=(?:&quot;|&#039;|["\'])?([^\]]+?)(?:&quot;|&#039;|["\'])?\]/i', '<div style="text-align:$1">', $text);
+        $text = str_ireplace('[/align]', '</div>', $text);
+
+        // Center/Right/Left Fix
+        $text = str_ireplace('[center]', '<div class="text-center">', $text);
+        $text = str_ireplace('[/center]', '</div>', $text);
+        $text = str_ireplace('[right]', '<div class="text-end">', $text);
+        $text = str_ireplace('[/right]', '</div>', $text);
+        $text = str_ireplace('[left]', '<div class="text-start">', $text);
+        $text = str_ireplace('[/left]', '</div>', $text);
+
+        // Code — كود
+        $text = preg_replace('/\[code\](.*?)\[\/code\]/is', '<pre class="bb-code" dir="ltr"><code>$1</code></pre>', $text);
+
+        // HR — خط فاصل
+        $text = preg_replace('/\[hr\]/i', '<hr class="bb-hr">', $text);
+
+        // === Bounded BBCode Tags (Structured Data) ===
+        // نستخدم حلقة تكرار لمعالجة التداخل (Nested Tags) مثل [quote]
         $maxPasses = 5; // تجنب الحلقات اللانهائية
         $pass = 0;
 
         do {
             $originalText = $text;
 
-            // Bold — خط عريض
-            $text = preg_replace('/\[b\](.*?)\[\/b\]/is', '<strong>$1</strong>', $text);
-
-            // Italic — خط مائل
-            $text = preg_replace('/\[i\](.*?)\[\/i\]/is', '<em>$1</em>', $text);
-
-            // Underline — خط سفلي
-            $text = preg_replace('/\[u\](.*?)\[\/u\]/is', '<u>$1</u>', $text);
-
-            // Strike — خط وسطي
-            $text = preg_replace('/\[s\](.*?)\[\/s\]/is', '<del>$1</del>', $text);
-
-            // Color — لون النص
-            $text = preg_replace('/\[color=(&quot;|&#039;|["\']?)(#[0-9a-fA-F]{3,6}|[a-zA-Z]+)(&quot;|&#039;|["\']?)\](.*?)\[\/color\]/is', '<span style="color:$2">$4</span>', $text);
-
-            // Size — حجم الخط
-            $text = preg_replace_callback('/\[size=(&quot;|&#039;|["\']?)([1-7])(&quot;|&#039;|["\']?)\](.*?)\[\/size\]/is', function ($m) {
-                $sizes = [1 => '0.7em', 2 => '0.85em', 3 => '1em', 4 => '1.2em', 5 => '1.5em', 6 => '2em', 7 => '2.5em'];
-                $size = $sizes[(int) $m[2]] ?? '1em';
-                return '<span style="font-size:' . $size . '">' . $m[4] . '</span>';
-            }, $text);
-
-            // Font — نوع الخط
-            $text = preg_replace('/\[font=(&quot;|&#039;|["\']?)([a-zA-Z\s,\-]+)(&quot;|&#039;|["\']?)\](.*?)\[\/font\]/is', '<span style="font-family:$2">$4</span>', $text);
-
-            // Center — توسيط
-            $text = preg_replace('/\[center\](.*?)\[\/center\]/is', '<div class="text-center">$1</div>', $text);
-
-            // Right — محاذاة يمين
-            $text = preg_replace('/\[right\](.*?)\[\/right\]/is', '<div class="text-end">$1</div>', $text);
-
-            // Left — محاذاة يسار
-            $text = preg_replace('/\[left\](.*?)\[\/left\]/is', '<div class="text-start">$1</div>', $text);
-
             // URL — روابط
-            // 1a. [url=&quot;http://example.com&quot;]Text[/url] (HTML-encoded double quotes)
-            $text = preg_replace('/\[url=&quot;(https?:\/\/.*?)&quot;\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$2</a>', $text);
-            // 1b. [url=&#039;http://example.com&#039;]Text[/url] (HTML-encoded single quotes)
-            $text = preg_replace('/\[url=&#039;(https?:\/\/.*?)&#039;\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$2</a>', $text);
-            // 1c. [url="http://example.com"]Text[/url] (Regular quotes - unlikely after htmlspecialchars)
-            $text = preg_replace('/\[url=["\'](https?:\/\/.*?)["\']\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$2</a>', $text);
-            // 1d. [url=http://example.com]Text[/url] (No quotes at all)
-            $text = preg_replace('/\[url=(https?:\/\/[^\]\s]+)\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$2</a>', $text);
-            // 2. [url]http://example.com[/url] (Simple)
-            $text = preg_replace('/\[url\](https?:\/\/[^\[]+)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$1</a>', $text);
+            $text = preg_replace('/\[url=(?:&quot;|&#039;|["\'])?(.*?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$2</a>', $text);
+            $text = preg_replace('/\[url\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$1</a>', $text);
 
             // Email — بريد إلكتروني
             $text = preg_replace('/\[email\]([^\[]+)\[\/email\]/is', '<a href="mailto:$1">$1</a>', $text);
-            $text = preg_replace('/\[email=(&quot;|&#039;|["\']?)([^\]]+)(&quot;|&#039;|["\']?)\](.*?)\[\/email\]/is', '<a href="mailto:$2">$4</a>', $text);
+            $text = preg_replace('/\[email=(?:&quot;|&#039;|["\'])?([^\]]+?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/email\]/is', '<a href="mailto:$1">$2</a>', $text);
 
             // Image — صور
             $text = preg_replace('/\[img\](https?:\/\/[^\[]+)\[\/img\]/is', '<img src="$1" class="img-fluid bb-img" loading="lazy" alt="صورة">', $text);
 
             // Quote — اقتباس
             $text = preg_replace(
-                '/\[quote=(&quot;|&#039;|["\']?)(.*?)(&quot;|&#039;|["\']?)\](.*?)\[\/quote\]/is',
-                '<blockquote class="bb-quote"><div class="bb-quote-author"><i class="bi bi-chat-quote-fill"></i> اقتباس من: $2</div><div class="bb-quote-content">$4</div></blockquote>',
+                '/\[quote=(?:&quot;|&#039;|["\'])?(.*?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/quote\]/is',
+                '<blockquote class="bb-quote"><div class="bb-quote-author"><i class="bi bi-chat-quote-fill"></i> اقتباس من: $1</div><div class="bb-quote-content">$2</div></blockquote>',
                 $text
             );
             $text = preg_replace(
@@ -92,9 +119,6 @@ class BBCodeParser
                 '<blockquote class="bb-quote"><div class="bb-quote-content">$1</div></blockquote>',
                 $text
             );
-
-            // Code — كود
-            $text = preg_replace('/\[code\](.*?)\[\/code\]/is', '<pre class="bb-code"><code>$1</code></pre>', $text);
 
             // Indent — مسافة بادئة
             $text = preg_replace('/\[indent\](.*?)\[\/indent\]/is', '<div style="margin-right:2em">$1</div>', $text);

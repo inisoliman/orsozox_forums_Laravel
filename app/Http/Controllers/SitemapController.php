@@ -27,6 +27,18 @@ class SitemapController extends Controller
         $xml .= '    <lastmod>' . now()->toW3cString() . "</lastmod>\n";
         $xml .= "  </sitemap>\n";
 
+        // أعداد الأعضاء
+        $userCount = Cache::remember('sitemap_user_count', 3600, fn() => \App\Models\User::count());
+        $userPages = max(1, (int) ceil($userCount / $perPage));
+
+        // Sitemap الأعضاء (بصفحات)
+        for ($i = 1; $i <= $userPages; $i++) {
+            $xml .= "  <sitemap>\n";
+            $xml .= '    <loc>' . htmlspecialchars(route('sitemap.users', ['page' => $i])) . "</loc>\n";
+            $xml .= '    <lastmod>' . now()->toW3cString() . "</lastmod>\n";
+            $xml .= "  </sitemap>\n";
+        }
+
         // Sitemap المواضيع (بصفحات)
         for ($i = 1; $i <= $pages; $i++) {
             $xml .= "  <sitemap>\n";
@@ -91,6 +103,39 @@ class SitemapController extends Controller
                     : now()->toW3cString();
 
                 $xml .= $this->urlTag($thread->url, $lastmod, 'weekly', '0.6');
+            }
+
+            $xml .= '</urlset>';
+            return $xml;
+        });
+
+        return response($xml, 200)->header('Content-Type', 'application/xml; charset=utf-8');
+    }
+
+    /**
+     * Sitemap الأعضاء — مُقسَّم بصفحات
+     * /sitemap-users-{page}.xml
+     */
+    public function users(int $page = 1)
+    {
+        $perPage = 1000;
+
+        $xml = Cache::remember("sitemap_users_{$page}", 86400, function () use ($page, $perPage) {
+            $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+            $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+
+            $users = \App\Models\User::orderBy('userid', 'asc')
+                ->offset(($page - 1) * $perPage)
+                ->limit($perPage)
+                ->get(['userid', 'lastactivity']); // lastactivity is from vBulletin legacy
+
+            foreach ($users as $user) {
+                // lastmod is last visit/activity or current date if empty
+                $lastmod = $user->last_visit_formatted
+                    ? $user->last_visit_formatted->toW3cString()
+                    : now()->toW3cString();
+
+                $xml .= $this->urlTag(route('user.show', $user->userid), $lastmod, 'monthly', '0.5');
             }
 
             $xml .= '</urlset>';

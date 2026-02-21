@@ -11,7 +11,7 @@ class ThreadController extends Controller
     /**
      * عرض الموضوع مع جميع الردود
      */
-    public function show(int $id, ?string $slug = null)
+    public function show(int $id, ?string $slug = null, \App\Services\ThreadSeoService $seoService)
     {
         $thread = Thread::with(['forum', 'author'])->visible()->findOrFail($id);
 
@@ -43,6 +43,24 @@ class ThreadController extends Controller
             ->with(['author', 'attachments'])
             ->paginate(15);
 
-        return view('thread.show', compact('thread', 'posts'));
+        // الموضوع التالي والسابق في نفس القسم
+        $nextThread = Thread::where('forumid', $thread->forumid)
+            ->where('threadid', '>', $thread->threadid)
+            ->visible()
+            ->orderBy('threadid', 'asc')
+            ->select('threadid', 'title')
+            ->first();
+
+        $prevThread = Thread::where('forumid', $thread->forumid)
+            ->where('threadid', '<', $thread->threadid)
+            ->visible()
+            ->orderBy('threadid', 'desc')
+            ->select('threadid', 'title')
+            ->first();
+
+        // توليد الـ SEO Object باستخدام الـ Service Layer
+        $seoData = $seoService->generate($thread);
+
+        return view('thread.show', compact('thread', 'posts', 'nextThread', 'prevThread', 'seoData'));
     }
 }

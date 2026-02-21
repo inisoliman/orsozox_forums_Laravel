@@ -17,10 +17,10 @@ class HomeController extends Controller
         // تحديد مجموعة المستخدم الحالي لعزل الـ Cache
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
 
-        // أحدث المواضيع (مخصص حسب المجموعة لتجنب إظهار مواضيع في أقسام محجوبة)
-        $latestThreads = Cache::remember("home_latest_{$usergroupId}", 600, function () {
+        // مواضيع متنوعة من الأرشيف (عشوائية تماماً من جميع المواضيع منذ بداية الموقع)
+        $latestThreads = Cache::remember("home_latest_rand_{$usergroupId}", 86400, function () {
             return Thread::visible()
-                ->orderBy('dateline', 'desc')
+                ->inRandomOrder()
                 ->with(['forum', 'author'])
                 ->limit(12)
                 ->get();
@@ -32,6 +32,16 @@ class HomeController extends Controller
                 ->mostViewed()
                 ->with(['forum', 'author'])
                 ->limit(6)
+                ->get();
+        });
+
+        // أبرز المواضيع (تتغير عشوائياً كل 24 ساعة من جميع مواضيع المنتدى ذات التفاعل/المشاهدات)
+        $topThreadsYear = Cache::remember("home_topyear_rand_{$usergroupId}", 86400, function () {
+            return Thread::visible()
+                ->where('views', '>', 50) // فلتر بسيط لضمان أن الموضوع ليس فارغاً تماماً
+                ->inRandomOrder()
+                ->with(['author'])
+                ->limit(5)
                 ->get();
         });
 
@@ -63,6 +73,6 @@ class HomeController extends Controller
             ];
         });
 
-        return view('home', compact('latestThreads', 'popularThreads', 'forums', 'stats'));
+        return view('home', compact('latestThreads', 'popularThreads', 'forums', 'stats', 'topThreadsYear'));
     }
 }
