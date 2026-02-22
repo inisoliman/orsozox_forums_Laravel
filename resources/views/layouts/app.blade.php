@@ -170,6 +170,37 @@
         </div>
     </nav>
 
+    {{-- News Ticker --}}
+    @if($themeSettings->get('news_ticker_enabled', true))
+        @php
+            try {
+                $tickers = \App\Models\NewsTicker::where('is_active', true)->orderBy('sort_order', 'asc')->get();
+            } catch (\Exception $e) {
+                $tickers = collect(); // If table doesn't exist yet, don't crash
+            }
+        @endphp
+    @if($tickers->count() > 0)
+        <div class="news-ticker-container bg-danger shadow-sm text-white py-1 overflow-hidden position-relative border-bottom border-danger-subtle">
+            <div class="container d-flex align-items-center">
+                <span class="badge bg-white text-danger ms-3 px-3 py-2 fw-bold text-nowrap z-3 position-relative rounded-pill shadow-sm"><i class="fas fa-bolt me-1"></i> عاجل</span>
+                <marquee direction="right" scrollamount="5" class="d-flex align-items-center mb-0 fw-bold" onmouseover="this.stop();" onmouseout="this.start();">
+                    @foreach($tickers as $ticker)
+                        <span class="mx-4">
+                            @if($ticker->url)
+                                <a href="{{ $ticker->url }}" class="text-white text-decoration-none" style="transition: color 0.3s;" onmouseover="this.style.color='#f8d7da'" onmouseout="this.style.color='white'">
+                                    <i class="fas fa-dot-circle mx-2 fs-6 opacity-75"></i>{{ $ticker->content }}
+                                </a>
+                            @else
+                                <i class="fas fa-dot-circle mx-2 fs-6 opacity-75"></i>{{ $ticker->content }}
+                            @endif
+                        </span>
+                    @endforeach
+                </marquee>
+            </div>
+        </div>
+    @endif
+    @endif
+
     {{-- Header Ad --}}
     @if($themeSettings->shouldShowAds(isset($forum) ? $forum->forumid : null) && $adCode = $themeSettings->get('ads.header_code'))
         <div class="container">

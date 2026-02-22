@@ -49,6 +49,10 @@ class ManageTheme extends Page implements HasForms
                                 Toggle::make('maintenance_mode')
                                     ->label('وضع الصيانة')
                                     ->helperText('عند التفعيل سيظهر للمستخدمين صفحة صيانة.'),
+                                Toggle::make('news_ticker_enabled')
+                                    ->label('إظهار شريط الأخبار')
+                                    ->default(true)
+                                    ->helperText('تفعيل أو تعطيل شريط الأخبار العاجلة في كامل المنتدى.'),
                             ]),
 
                         Tabs\Tab::make('الإعلانات')
@@ -129,7 +133,7 @@ class ManageTheme extends Page implements HasForms
 
     public function save(ThemeSettings $settings): void
     {
-        $settings->settings = $this->form->getState();
+        $settings->setAll($this->form->getState());
         $settings->save();
 
         Notification::make()

@@ -38,6 +38,12 @@ class ThemeSettings
         return $this->settings;
     }
 
+    public function setAll(array $data)
+    {
+        $this->settings = $data;
+        return $this;
+    }
+
     public function save()
     {
         Storage::put($this->path, json_encode($this->settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));

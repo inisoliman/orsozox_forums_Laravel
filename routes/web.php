@@ -92,6 +92,13 @@ Route::get('/sitemap-users-{page}.xml', [SitemapController::class, 'users'])->na
 // المتواجدون الآن (تفاصيل للإدارة)
 Route::get('/online-users', [OnlineUsersController::class, 'index'])->name('online.users')->middleware('auth');
 
+// عمليات التعديل للواجهة الأمامية (AJAX Moderation)
+Route::middleware('auth')->group(function () {
+    Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadActionController::class, 'update'])->name('thread.ajax.edit');
+    Route::post('/thread/{id}/ajax/move', [\App\Http\Controllers\Api\ThreadActionController::class, 'move'])->name('thread.ajax.move');
+    Route::post('/thread/{id}/ajax/delete', [\App\Http\Controllers\Api\ThreadActionController::class, 'destroy'])->name('thread.ajax.delete');
+});
+
 // تحويل الروابط الخارجية (Redirector)
 Route::get('/redirector.php', [RedirectorController::class, 'index'])->name('redirector');
 
@@ -100,6 +107,36 @@ Route::get('/redirector.php', [RedirectorController::class, 'index'])->name('red
 | تحويلات الروابط القديمة — Legacy vBulletin 301 Redirects
 |--------------------------------------------------------------------------
 */
+// vBulletin 3 Standard Query Redirects
 Route::get('/showthread.php', [RedirectController::class, 'showThread']);
 Route::get('/forumdisplay.php', [RedirectController::class, 'forumDisplay']);
 Route::get('/member.php', [RedirectController::class, 'member']);
+
+// vBSEO / Simple Rewriting Redirects
+Route::get('/f{forum_id}', function ($forum_id) {
+    $forum = \App\Models\Forum::find($forum_id);
+    if ($forum)
+        return redirect($forum->url, 301);
+    abort(404);
+})->where('forum_id', '[0-9]+');
+
+Route::get('/f{forum_id}/', function ($forum_id) {
+    $forum = \App\Models\Forum::find($forum_id);
+    if ($forum)
+        return redirect($forum->url, 301);
+    abort(404);
+})->where('forum_id', '[0-9]+');
+
+Route::get('/f{forum_id}/t{thread_id}', function ($forum_id, $thread_id) {
+    $thread = \App\Models\Thread::find($thread_id);
+    if ($thread)
+        return redirect($thread->url, 301);
+    abort(404);
+})->where(['forum_id' => '[0-9]+', 'thread_id' => '[0-9]+']);
+
+Route::get('/f{forum_id}/t{thread_id}/', function ($forum_id, $thread_id) {
+    $thread = \App\Models\Thread::find($thread_id);
+    if ($thread)
+        return redirect($thread->url, 301);
+    abort(404);
+})->where(['forum_id' => '[0-9]+', 'thread_id' => '[0-9]+']);

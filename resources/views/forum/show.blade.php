@@ -84,9 +84,10 @@
         </div>
 
         @forelse($threads as $thread)
-            <div class="thread-item animate-in">
-                <div class="thread-icon {{ $thread->open ? '' : 'locked' }}">
-                    <i class="fas {{ $thread->open ? 'fa-comment-alt' : 'fa-lock' }}"></i>
+            <div
+                class="thread-item animate-in {{ $thread->sticky ? 'border-start border-4 border-warning bg-opacity-10 bg-warning' : '' }}">
+                <div class="thread-icon {{ $thread->sticky ? 'text-warning' : ($thread->open ? '' : 'locked') }}">
+                    <i class="fas {{ $thread->sticky ? 'fa-thumbtack' : ($thread->open ? 'fa-comment-alt' : 'fa-lock') }}"></i>
                 </div>
                 <div class="thread-content">
                     <div class="thread-title">

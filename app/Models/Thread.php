@@ -26,6 +26,7 @@ class Thread extends Model
         'open',
         'visible',
         'lastpost',
+        'sticky',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class Thread extends Model
         'open' => 'integer',
         'dateline' => 'integer',
         'visible' => 'integer',
+        'sticky' => 'integer',
     ];
 
     /**

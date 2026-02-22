@@ -20,6 +20,15 @@ class PostResource extends Resource
     protected static ?string $pluralModelLabel = 'الردود';
     protected static ?int $navigationSort = 2;
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()->whereNotIn('postid', function ($query) {
+            $query->select('firstpostid')
+                ->from('thread')
+                ->whereNotNull('firstpostid');
+        });
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
@@ -33,11 +42,17 @@ class PostResource extends Resource
                 ->label('اسم الكاتب')
                 ->maxLength(100),
 
-            Forms\Components\Textarea::make('pagetext')
+            Forms\Components\RichEditor::make('pagetext')
                 ->label('محتوى الرد')
                 ->required()
-                ->rows(8)
-                ->columnSpanFull(),
+                ->columnSpanFull()
+                ->formatStateUsing(function (?string $state) {
+                    if (str_starts_with($state ?? '', '<!-- HTML -->')) {
+                        return str_replace('<!-- HTML -->', '', $state);
+                    }
+                    return \App\Helpers\BBCodeParser::parse($state ?? '');
+                })
+                ->dehydrateStateUsing(fn(?string $state) => '<!-- HTML -->' . $state),
 
             Forms\Components\Toggle::make('visible')
                 ->label('مرئي')

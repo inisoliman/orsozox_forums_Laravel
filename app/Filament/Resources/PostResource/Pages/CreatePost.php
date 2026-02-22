@@ -25,6 +25,15 @@ class CreatePost extends CreateRecord
             $data['visible'] = 0; // مخفي تلقائيا للمراجعة
         }
 
+        // Set post author
+        if (empty($data['username'])) {
+            $data['userid'] = auth()->id() ?? 1;
+            $data['username'] = auth()->user()?->username ?? 'Admin';
+        } else {
+            // Admin set the author manually
+            $data['userid'] = \App\Models\User::where('username', $data['username'])->value('userid') ?? 1;
+        }
+
         return $data;
     }
 

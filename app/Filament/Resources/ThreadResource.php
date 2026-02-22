@@ -27,12 +27,11 @@ class ThreadResource extends Resource
                 ->label('عنوان الموضوع')
                 ->required()
                 ->maxLength(255)
-                ->columnSpanFull()
-                // Inject custom JS via a view to handle frontend duplicate checks
-                ->extraInputAttributes(['id' => 'thread-title-input']),
+                ->columnSpanFull(),
 
-            Forms\Components\ViewField::make('duplicate_checker')
-                ->view('filament.forms.components.duplicate-checker')
+            Forms\Components\RichEditor::make('pagetext')
+                ->label('محتوى الموضوع')
+                ->required()
                 ->columnSpanFull(),
 
             Forms\Components\Select::make('forumid')

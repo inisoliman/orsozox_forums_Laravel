@@ -43,6 +43,7 @@ class ForumController extends Controller
 
         $threads = Thread::where('forumid', $id)
             ->visible()
+            ->orderBy('sticky', 'desc')
             ->orderBy('dateline', 'desc')
             ->with(['author'])
             ->paginate(20);
