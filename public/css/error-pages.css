@@ -1,0 +1,417 @@
+/* ============================================
+   Error Pages Design System
+   Theme: Modern Byzantine Elegance
+   Performance: < 15KB total CSS
+   ============================================ */
+
+/* --- Root Variables --- */
+:root {
+    --ep-bg: #faf6ef;
+    --ep-bg2: #f4ece0;
+    --ep-gold: #c9a227;
+    --ep-gold-light: #e8d48b;
+    --ep-gold-glow: rgba(201, 162, 39, 0.15);
+    --ep-text: #2c2c2c;
+    --ep-text-muted: #7a7364;
+    --ep-border: #e0d5c1;
+    --ep-white: #fff;
+}
+
+/* --- Reset & Base --- */
+.ep-page {
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+    background: linear-gradient(160deg, var(--ep-bg) 0%, var(--ep-bg2) 100%);
+    color: var(--ep-text);
+    direction: rtl;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+}
+
+/* --- Background Cross Watermark (SVG inline) --- */
+.ep-page::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 400px;
+    height: 400px;
+    opacity: 0.04;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='42' y='5' width='16' height='90' rx='2' fill='%23c9a227'/%3E%3Crect x='15' y='28' width='70' height='16' rx='2' fill='%23c9a227'/%3E%3C/svg%3E") no-repeat center;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* --- Floating Particles (CSS only) --- */
+.ep-particles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.ep-particles span {
+    position: absolute;
+    display: block;
+    width: 4px;
+    height: 4px;
+    background: var(--ep-gold-light);
+    border-radius: 50%;
+    opacity: 0;
+    animation: ep-float 8s ease-in-out infinite;
+}
+
+.ep-particles span:nth-child(1) {
+    top: 20%;
+    left: 15%;
+    animation-delay: 0s;
+    animation-duration: 7s;
+}
+
+.ep-particles span:nth-child(2) {
+    top: 60%;
+    left: 80%;
+    animation-delay: 2s;
+    animation-duration: 9s;
+}
+
+.ep-particles span:nth-child(3) {
+    top: 40%;
+    left: 50%;
+    animation-delay: 4s;
+    animation-duration: 6s;
+}
+
+.ep-particles span:nth-child(4) {
+    top: 80%;
+    left: 25%;
+    animation-delay: 1s;
+    animation-duration: 10s;
+}
+
+.ep-particles span:nth-child(5) {
+    top: 10%;
+    left: 70%;
+    animation-delay: 3s;
+    animation-duration: 8s;
+}
+
+.ep-particles span:nth-child(6) {
+    top: 50%;
+    left: 40%;
+    animation-delay: 5s;
+    animation-duration: 7s;
+}
+
+@keyframes ep-float {
+
+    0%,
+    100% {
+        opacity: 0;
+        transform: translateY(0) scale(1);
+    }
+
+    25% {
+        opacity: 0.6;
+    }
+
+    50% {
+        opacity: 0.8;
+        transform: translateY(-40px) scale(1.5);
+    }
+
+    75% {
+        opacity: 0.4;
+    }
+}
+
+/* --- Main Content Container --- */
+.ep-container {
+    position: relative;
+    z-index: 1;
+    max-width: 520px;
+    padding: 40px 32px;
+    animation: ep-fade-in 0.8s ease both;
+}
+
+@keyframes ep-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Error Code --- */
+.ep-code {
+    font-size: 7rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, var(--ep-gold) 0%, var(--ep-gold-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: ep-fade-in 0.6s ease both;
+    letter-spacing: -2px;
+}
+
+/* --- Glow Pulse behind code --- */
+.ep-glow {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, var(--ep-gold-glow) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: ep-pulse 4s ease-in-out infinite;
+    z-index: -1;
+}
+
+@keyframes ep-pulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: translateX(-50%) scale(1);
+    }
+
+    50% {
+        opacity: 0.7;
+        transform: translateX(-50%) scale(1.15);
+    }
+}
+
+/* --- Small Cross Icon --- */
+.ep-cross {
+    width: 32px;
+    height: 32px;
+    margin: 0 auto 16px;
+    opacity: 0.5;
+    animation: ep-fade-in 0.5s ease 0.2s both;
+}
+
+/* --- Headline --- */
+.ep-headline {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin: 12px 0 8px;
+    color: var(--ep-text);
+    animation: ep-fade-in 0.6s ease 0.15s both;
+}
+
+/* --- Description --- */
+.ep-desc {
+    font-size: 1rem;
+    color: var(--ep-text-muted);
+    margin-bottom: 28px;
+    line-height: 1.7;
+    animation: ep-fade-in 0.6s ease 0.3s both;
+}
+
+/* --- Buttons --- */
+.ep-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
+    animation: ep-fade-in 0.6s ease 0.45s both;
+}
+
+.ep-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 28px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.ep-btn-primary {
+    background: linear-gradient(135deg, var(--ep-gold) 0%, #b8922a 100%);
+    color: var(--ep-white);
+    box-shadow: 0 4px 14px rgba(201, 162, 39, 0.3);
+}
+
+.ep-btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(201, 162, 39, 0.4);
+}
+
+.ep-btn-secondary {
+    background: var(--ep-white);
+    color: var(--ep-text);
+    border: 1px solid var(--ep-border);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.ep-btn-secondary:hover {
+    transform: translateY(-2px);
+    border-color: var(--ep-gold);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Search Box (404 only) --- */
+.ep-search {
+    margin-top: 24px;
+    animation: ep-fade-in 0.6s ease 0.6s both;
+}
+
+.ep-search-form {
+    display: flex;
+    gap: 0;
+    max-width: 360px;
+    margin: 0 auto;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--ep-border);
+    background: var(--ep-white);
+    transition: border-color 0.3s;
+}
+
+.ep-search-form:focus-within {
+    border-color: var(--ep-gold);
+    box-shadow: 0 0 0 3px var(--ep-gold-glow);
+}
+
+.ep-search-input {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    outline: none;
+    font-size: 0.9rem;
+    font-family: inherit;
+    direction: rtl;
+    background: transparent;
+    color: var(--ep-text);
+}
+
+.ep-search-btn {
+    padding: 10px 18px;
+    background: var(--ep-gold);
+    color: var(--ep-white);
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: background 0.2s;
+}
+
+.ep-search-btn:hover {
+    background: #b8922a;
+}
+
+/* --- Countdown (503 only) --- */
+.ep-countdown {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    margin: 20px 0;
+    animation: ep-fade-in 0.6s ease 0.4s both;
+}
+
+.ep-countdown-unit {
+    background: var(--ep-white);
+    border: 1px solid var(--ep-border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    min-width: 60px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.ep-countdown-val {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--ep-gold);
+    line-height: 1;
+}
+
+.ep-countdown-label {
+    font-size: 0.7rem;
+    color: var(--ep-text-muted);
+    margin-top: 4px;
+}
+
+/* --- Decorative Byzantine Border --- */
+.ep-border-top {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent 0%, var(--ep-gold) 50%, transparent 100%);
+}
+
+/* --- Footer text --- */
+.ep-footer {
+    margin-top: 32px;
+    font-size: 0.8rem;
+    color: var(--ep-text-muted);
+    opacity: 0.6;
+    animation: ep-fade-in 0.6s ease 0.7s both;
+}
+
+.ep-footer a {
+    color: var(--ep-gold);
+    text-decoration: none;
+}
+
+/* --- Reduced Motion --- */
+@media (prefers-reduced-motion: reduce) {
+
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* --- Mobile --- */
+@media (max-width: 600px) {
+    .ep-code {
+        font-size: 5rem;
+    }
+
+    .ep-headline {
+        font-size: 1.2rem;
+    }
+
+    .ep-container {
+        padding: 24px 20px;
+    }
+
+    .ep-countdown {
+        gap: 8px;
+    }
+
+    .ep-countdown-unit {
+        min-width: 50px;
+        padding: 8px 10px;
+    }
+
+    .ep-countdown-val {
+        font-size: 1.4rem;
+    }
+}

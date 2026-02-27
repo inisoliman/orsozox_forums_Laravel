@@ -1,0 +1,124 @@
+/* YouTube Lite Embed - High Performance CSS */
+
+.yt-lite {
+    position: relative;
+    display: flow-root;
+    clear: both;
+    width: 100%;
+    max-width: 720px;
+    margin: 20px auto;
+    background-color: #000;
+    aspect-ratio: 16 / 9;
+    cursor: pointer;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.yt-lite:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+}
+
+.yt-thumbnail {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.yt-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.8;
+    transition: opacity 0.3s ease;
+}
+
+.yt-lite:hover .yt-thumbnail img {
+    opacity: 1;
+}
+
+/* Play Button Overlay */
+.yt-play-button {
+    position: absolute;
+    width: 68px;
+    height: 48px;
+    background-color: rgba(33, 33, 33, 0.8);
+    z-index: 1;
+    border-radius: 12%;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.yt-lite:hover .yt-play-button {
+    background-color: #f00;
+    transform: scale(1.1);
+}
+
+.yt-play-button::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-40%, -50%);
+    border-style: solid;
+    border-width: 12px 0 12px 20px;
+    border-color: transparent transparent transparent #fff;
+}
+
+.yt-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px 15px;
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+    display: flex;
+    justify-content: flex-end;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.yt-lite:hover .yt-footer {
+    opacity: 1;
+}
+
+.yt-footer a {
+    color: #fff;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.yt-footer a:hover {
+    text-decoration: underline;
+}
+
+/* Iframe and Fade-in Animation */
+.yt-lite iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+    animation: yt-fade-in 0.5s ease;
+}
+
+@keyframes yt-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* Dark Mode Overrides (Subtle changes if needed) */
+body.dark-mode .yt-lite {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}

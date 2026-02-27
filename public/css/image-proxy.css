@@ -1,0 +1,62 @@
+/* LIIMS — Broken Image Styles */
+
+.missing-image {
+    display: block;
+    max-width: 220px;
+    margin: 12px auto;
+    padding: 0;
+    border-radius: 10px;
+    border: 1px solid #e0d5c1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    opacity: 0.85;
+    transition: opacity 0.3s ease;
+}
+
+.missing-image:hover {
+    opacity: 1;
+}
+
+/* Broken image inside a link  — show styled button */
+.broken-image-wrapper {
+    display: block;
+    clear: both;
+    max-width: 400px;
+    margin: 15px auto;
+    text-align: center;
+}
+
+.broken-image-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #fff !important;
+    text-decoration: none !important;
+    font-weight: 600;
+    font-size: 0.9rem;
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+}
+
+.broken-image-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
+
+.broken-image-button::before {
+    content: "🔗";
+    font-size: 1.1rem;
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+    .missing-image {
+        background: linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%);
+    }
+}
+
+body.dark-mode .missing-image {
+    background: linear-gradient(135deg, #2d2d2d 0%, #1e1e1e 100%);
+}
