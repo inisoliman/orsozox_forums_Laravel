@@ -17,6 +17,8 @@
     <meta property="article:modified_time" content="{{ $seoData['modified_time'] }}">
     <meta property="article:author" content="{{ $seoData['author_name'] }}">
     <meta property="article:section" content="{{ $seoData['forum_name'] }}">
+    <link rel="stylesheet" href="{{ asset('css/yt-lite.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/image-proxy.css') }}">
 @endpush
 
 @section('schema')
@@ -24,6 +26,7 @@
         'title' => $seoData['title'],
         'image' => $seoData['image'],
         'author' => $seoData['author_name'],
+        'author_url' => $seoData['author_url'],
         'datePublished' => $seoData['published_time'],
         'dateModified' => $seoData['modified_time'],
         'views' => $seoData['views'],
@@ -31,6 +34,7 @@
         'text' => $seoData['raw_text'],
         'url' => $seoData['url'],
         'forum' => $seoData['forum_name'],
+        'comments' => $seoData['comments'] ?? [],
     ]) !!}
     {!! \App\Helpers\SeoHelper::schemaBreadcrumb([
         ['name' => 'الرئيسية', 'url' => route('home')],
@@ -68,7 +72,12 @@
                         <i class="fas {{ $thread->open ? 'fa-comment-alt' : 'fa-lock' }}"></i>
                     </div>
                     <div class="flex-grow-1">
-                        <h1 class="h3 fw-bold mb-2">{{ $thread->title }}</h1>
+                        <h1 class="h3 fw-bold mb-2" id="thread-title-display">{{ $thread->title }}</h1>
+                        @auth
+                            @if(auth()->user()->is_admin || auth()->user()->is_moderator || auth()->id() === $thread->postuserid)
+                                <input type="text" id="thread-title-input" class="form-control mb-2 fw-bold d-none bg-dark text-light border-secondary" value="{{ $thread->title }}">
+                            @endif
+                        @endauth
                         <div class="thread-meta">
                             <span>
                                 <i class="fas fa-user-circle"></i>
@@ -104,9 +113,9 @@
                                         <i class="fas fa-cog"></i> إدارة الموضوع
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="modMenuButton">
-                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
-                                                data-bs-target="#editThreadModal"><i class="fas fa-edit text-primary me-2"></i>
-                                                تعديل الموضوع</a></li>
+                                        <li><a class="dropdown-item" href="javascript:void(0);" 
+                                                onclick="if(window.AppEditor){window.AppEditor.startThreadEdit('{{ $thread->threadid }}','{{ $thread->firstPost->postid ?? ($posts->isNotEmpty() ? $posts->first()->postid : '') }}','{{ url('/thread') }}/{{ $thread->threadid }}/ajax/edit',window._editorUploadUrl);}else{alert('المحرر غير جاهز');}">
+                                                <i class="fas fa-edit text-primary me-2"></i> تعديل الموضوع</a></li>
                                         <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
                                                 data-bs-target="#moveThreadModal"><i
                                                     class="fas fa-exchange-alt text-warning me-2"></i> نقل الموضوع</a></li>
@@ -143,12 +152,24 @@
                             · {{ $post->created_date->diffForHumans() }}
                         </div>
                     </div>
-                    <div class="post-number">
-                        #{{ ($posts->currentPage() - 1) * $posts->perPage() + $index + 1 }}
+                    <div class="d-flex align-items-center gap-2">
+                        @auth
+                            @can('update', $post)
+                                <button class="btn btn-sm btn-outline-accent" title="تعديل الرد"
+                                    onclick="if(window.AppEditor){window.AppEditor.startPostEdit('{{ $post->postid }}','{{ url('/post') }}/{{ $post->postid }}/ajax/edit',window._editorUploadUrl);}else{alert('المحرر غير جاهز');}">
+                                    <i class="fas fa-edit"></i> تعديل
+                                </button>
+                            @endcan
+                        @endauth
+                        <a href="{{ route('post.show', $post->postid) }}" class="post-number" title="رابط مباشر للمشاركة — انقر للنسخ">
+                            #{{ ($posts->currentPage() - 1) * $posts->perPage() + $index + 1 }}
+                        </a>
                     </div>
                 </div>
                 <div class="post-content">
-                    {!! $post->parsed_content !!}
+                    <div class="post-content-body" id="post-content-{{ $post->postid }}">
+                        {!! $post->parsed_content !!}
+                    </div>
 
                     {{-- المرفقات --}}
                     @if($post->attachments->count())
@@ -268,49 +289,6 @@
         {{-- Modals for Thread Moderation --}}
         @auth
             @if(auth()->user()->is_admin || auth()->user()->is_moderator || auth()->id() === $thread->postuserid)
-                <!-- Edit Modal -->
-                <div class="modal fade" id="editThreadModal" tabindex="-1" aria-labelledby="editThreadModalLabel"
-                    aria-hidden="true">
-                    <div class="modal-dialog modal-xl">
-                        <div class="modal-content glass-panel border-0">
-                            <div class="modal-header border-bottom border-light">
-                                <h5 class="modal-title fw-bold" id="editThreadModalLabel"><i class="fas fa-edit text-accent"></i>
-                                    تعديل الموضوع</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-                            <div class="modal-body">
-                                <form id="formEditThread">
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">عنوان الموضوع</label>
-                                        <input type="text" class="form-control bg-dark text-light border-secondary" id="editTitle"
-                                            value="{{ $thread->title }}" required>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label fw-bold">محتوى الموضوع</label>
-                                        {{-- Load Summernote or Quill here. Let's use a standard textarea that we can upgrade to
-                                        Quill --}}
-                                        @php
-                                            $rawText = $thread->firstPost?->pagetext ?? '';
-                                            $editText = str_starts_with((string)$rawText, '<!-- HTML -->') 
-                                                ? str_replace('<!-- HTML -->', '', (string)$rawText) 
-                                                : \App\Helpers\BBCodeParser::parse((string)$rawText);
-                                        @endphp
-                                        <div id="editor-container"
-                                            style="height: 300px; min-height: 200px; overflow-y: auto; background: var(--bg-primary); color: var(--text-main);">
-                                            {!! $editText !!}
-                                        </div>
-                                    </div>
-                                </form>
-                            </div>
-                            <div class="modal-footer border-top border-light">
-                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                <button type="button" class="btn btn-accent" id="btnSaveEdit">حفظ التعديلات <i
-                                        class="fas fa-save ms-1"></i></button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Move Modal -->
                 <div class="modal fade" id="moveThreadModal" tabindex="-1" aria-labelledby="moveThreadModalLabel"
                     aria-hidden="true">
@@ -369,126 +347,106 @@
 @endsection
 
 @push('scripts')
-    @auth
-        @if(auth()->user()->is_admin || auth()->user()->is_moderator || auth()->id() === $thread->postuserid)
-            <!-- Quill Editor (from CDN) for inline editing -->
-            <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
-            <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    {{-- YouTube Lite Embed — for ALL users (guests + logged in) --}}
+    <script src="{{ asset('js/yt-lite.js') }}"></script>
 
-            <style>
-                /* Fix Tooltips & Dropdowns inside Quill Modal */
-                .ql-snow .ql-picker.ql-expanded .ql-picker-options {
-                    z-index: 1060;
-                }
-            </style>
-            <script>
-                document.addEventListener('DOMContentLoaded', function () {
-                    // Initialize Quill Editor immediately
-                    var quill = new Quill('#editor-container', {
-                        theme: 'snow',
-                        placeholder: 'اكتب محتوى الموضوع هنا...',
-                        modules: {
-                            toolbar: [
-                                [{ 'header': [1, 2, 3, false] }],
-                                ['bold', 'italic', 'underline', 'strike'],
-                                [{ 'color': [] }, { 'background': [] }],
-                                [{ 'list': 'ordered' }, { 'list': 'bullet' }],
-                                [{ 'align': [] }],
-                                ['link', 'image', 'video'],
-                                ['clean']
-                            ]
+    @auth
+        {{-- CKEditor 5 Super Build — includes ALL free plugins --}}
+        <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/super-build/ckeditor.js"></script>
+        <script src="https://cdn.ckeditor.com/ckeditor5/41.4.2/super-build/translations/ar.js"></script>
+        <script src="{{ asset('js/editor_v2.js') }}?v={{ time() }}"></script>
+        <style>
+            /* Custom styling for CKEditor in dark mode */
+            .ck-editor__editable_inline {
+                min-height: 200px;
+                color: #000;
+            }
+            :root {
+                --ck-color-base-background: #ffffff;
+                --ck-color-base-border: #ccc;
+            }
+            body.dark-mode, .dark-mode {
+                --ck-color-base-background: #1e1e1e;
+                --ck-color-base-border: #333;
+                --ck-color-editor-base-text: #eee;
+            }
+            .dark-mode .ck.ck-editor__main>.ck-editor__editable {
+                background: #2b2b2b !important;
+                color: #e0e0e0 !important;
+                border-color: #444 !important;
+            }
+            .dark-mode .ck-toolbar {
+                background: #1e1e1e !important;
+                border-color: #444 !important;
+            }
+            .dark-mode .ck-button {
+                color: #ccc !important;
+            }
+            .dark-mode .ck.ck-button:hover, .dark-mode .ck.ck-button.ck-on {
+                background: #333 !important;
+            }
+            .editor-wrapper {
+                background: var(--bg-panel);
+                padding: 15px;
+                border-radius: 8px;
+                border: 1px solid var(--border-color);
+            }
+        </style>
+        <script>
+            // Global upload URL for editor buttons
+            window._editorUploadUrl = '{{ route('editor.upload') }}';
+
+            // Move & Delete handlers
+            (function() {
+                const doFetch = async (url, data) => {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    return await response.json();
+                };
+
+                const btnSaveMove = document.getElementById('btnSaveMove');
+                if (btnSaveMove) {
+                    btnSaveMove.addEventListener('click', async function () {
+                        const forumid = document.getElementById('moveForumId').value;
+                        const btn = this;
+                        btn.disabled = true;
+                        btn.innerHTML = 'جاري النقل... <i class="fas fa-spinner fa-spin ms-1"></i>';
+                        try {
+                            const res = await doFetch('{{ route('thread.ajax.move', $thread->threadid) }}', { forumid });
+                            if (res.success) { window.location.href = res.redirect; }
+                        } catch (error) {
+                            alert('فشل النقل.');
+                            btn.disabled = false;
+                            btn.innerHTML = 'نقل';
                         }
                     });
+                }
 
-                    // Utility for AJAX requests
-                    const doFetch = async (url, data) => {
-                        const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken,
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify(data)
-                        });
-                        return await response.json();
-                    };
-
-                    // Handle Edit
-                    const btnSaveEdit = document.getElementById('btnSaveEdit');
-                    if (btnSaveEdit) {
-                        btnSaveEdit.addEventListener('click', async function () {
-                            const title = document.getElementById('editTitle').value;
-                            const pagetext = quill.root.innerHTML;
-                            const btn = this;
-
-                            btn.disabled = true;
-                            btn.innerHTML = 'جاري الحفظ... <i class="fas fa-spinner fa-spin ms-1"></i>';
-
-                            try {
-                                const res = await doFetch('{{ route('thread.ajax.edit', $thread->threadid) }}', { title, pagetext });
-                                if (res.success) {
-                                    alert(res.message);
-                                    location.reload(); // Reload to see changes rendered with updated Schema & Og metadata
-                                } else {
-                                    alert('حدث خطأ أثناء الحفظ.');
-                                }
-                            } catch (error) {
-                                alert('فشل الاتصال بالخادم.');
-                            } finally {
-                                btn.disabled = false;
-                                btn.innerHTML = 'حفظ التعديلات <i class="fas fa-save ms-1"></i>';
-                            }
-                        });
-                    }
-
-                    // Handle Move
-                    const btnSaveMove = document.getElementById('btnSaveMove');
-                    if (btnSaveMove) {
-                        btnSaveMove.addEventListener('click', async function () {
-                            const forumid = document.getElementById('moveForumId').value;
-                            const btn = this;
-
-                            btn.disabled = true;
-                            btn.innerHTML = 'جاري النقل... <i class="fas fa-spinner fa-spin ms-1"></i>';
-
-                            try {
-                                const res = await doFetch('{{ route('thread.ajax.move', $thread->threadid) }}', { forumid });
-                                if (res.success) {
-                                    window.location.href = res.redirect;
-                                }
-                            } catch (error) {
-                                alert('فشل النقل.');
-                                btn.disabled = false;
-                                btn.innerHTML = 'نقل';
-                            }
-                        });
-                    }
-
-                    // Handle Delete
-                    const btnConfirmDelete = document.getElementById('btnConfirmDelete');
-                    if (btnConfirmDelete) {
-                        btnConfirmDelete.addEventListener('click', async function () {
-                            const btn = this;
-
-                            btn.disabled = true;
-                            btn.innerHTML = 'جاري الحذف... <i class="fas fa-spinner fa-spin ms-1"></i>';
-
-                            try {
-                                const res = await doFetch('{{ route('thread.ajax.delete', $thread->threadid) }}', {});
-                                if (res.success) {
-                                    window.location.href = res.redirect;
-                                }
-                            } catch (error) {
-                                alert('فشل الحذف.');
-                                btn.disabled = false;
-                                btn.innerHTML = 'نعم، احذف نهائياً';
-                            }
-                        });
-                    }
-                });
-            </script>
-        @endif
+                const btnConfirmDelete = document.getElementById('btnConfirmDelete');
+                if (btnConfirmDelete) {
+                    btnConfirmDelete.addEventListener('click', async function () {
+                        const btn = this;
+                        btn.disabled = true;
+                        btn.innerHTML = 'جاري الحذف... <i class="fas fa-spinner fa-spin ms-1"></i>';
+                        try {
+                            const res = await doFetch('{{ route('thread.ajax.delete', $thread->threadid) }}', {});
+                            if (res.success) { window.location.href = res.redirect; }
+                        } catch (error) {
+                            alert('فشل الحذف.');
+                            btn.disabled = false;
+                            btn.innerHTML = 'نعم، احذف نهائياً';
+                        }
+                    });
+                }
+            })();
+        </script>
     @endauth
 @endpush

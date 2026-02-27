@@ -11,10 +11,22 @@ use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\RedirectorController;
 use App\Http\Controllers\OnlineUsersController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\PostController;
 use App\Http\Controllers\Api\ThreadValidationController;
+use App\Http\Controllers\ImageProxyController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
+
+// LIIMS: Image Proxy (public, no auth required)
+Route::get('/image-proxy/{hash}', [ImageProxyController::class, 'show'])
+    ->where('hash', '[a-f0-9]{64}')
+    ->name('image.proxy');
+
+Route::get('/clear-home-cache', function () {
+    \Illuminate\Support\Facades\Cache::flush();
+    return 'Cache cleared successfully. Please check the homepage now.';
+});
 
 Route::get('/run-local-ai-migration', function () {
     if (!Schema::hasTable('thread_keywords')) {
@@ -73,7 +85,10 @@ Route::get('/user/{id}', [UserController::class, 'show'])->name('user.show')->wh
 
 // البحث
 Route::get('/search', [SearchController::class, 'index'])->name('search');
-Route::get('/search/results', [SearchController::class, 'results'])->name('search.results');
+Route::get('/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+
+// رابط مباشر للمشاركة
+Route::get('/posts/{postid}', [PostController::class, 'show'])->name('post.show')->where('postid', '[0-9]+');
 
 // تسجيل الدخول
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -94,7 +109,15 @@ Route::get('/online-users', [OnlineUsersController::class, 'index'])->name('onli
 
 // عمليات التعديل للواجهة الأمامية (AJAX Moderation)
 Route::middleware('auth')->group(function () {
-    Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadActionController::class, 'update'])->name('thread.ajax.edit');
+    // تعديل الموضوع باستخدام CKEditor
+    Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadEditController::class, 'update'])->name('thread.ajax.edit');
+    // تعديل الردود باستخدام CKEditor
+    Route::post('/post/{id}/ajax/edit', [\App\Http\Controllers\Api\PostEditController::class, 'update'])->name('post.ajax.edit');
+    // رفع الصور من داخل المحرر (ملف + رابط)
+    Route::post('/editor/upload', [\App\Http\Controllers\ImageUploadController::class, 'upload'])->name('editor.upload');
+    Route::post('/editor/upload-url', [\App\Http\Controllers\ImageUploadController::class, 'uploadByUrl'])->name('editor.upload.url');
+
+    // أدوات المشرف الأخرى
     Route::post('/thread/{id}/ajax/move', [\App\Http\Controllers\Api\ThreadActionController::class, 'move'])->name('thread.ajax.move');
     Route::post('/thread/{id}/ajax/delete', [\App\Http\Controllers\Api\ThreadActionController::class, 'destroy'])->name('thread.ajax.delete');
 });
@@ -111,6 +134,19 @@ Route::get('/redirector.php', [RedirectorController::class, 'index'])->name('red
 Route::get('/showthread.php', [RedirectController::class, 'showThread']);
 Route::get('/forumdisplay.php', [RedirectController::class, 'forumDisplay']);
 Route::get('/member.php', [RedirectController::class, 'member']);
+
+// Legacy Archive Redirects (SEO: 301 preserves link equity)
+// /archive/index.php/t-123.html → /thread/123/slug
+Route::get('/archive/index.php/t-{id}.html', [RedirectController::class, 'archiveThread'])
+    ->where('id', '[0-9]+');
+
+// /archive/index.php/f-45.html → /forum/45/slug
+Route::get('/archive/index.php/f-{id}.html', [RedirectController::class, 'archiveForum'])
+    ->where('id', '[0-9]+');
+
+// Legacy Tag Redirects
+// /tags.php?tag=keyword → /search?q=keyword
+Route::get('/tags.php', [RedirectController::class, 'tags']);
 
 // vBSEO / Simple Rewriting Redirects
 Route::get('/f{forum_id}', function ($forum_id) {

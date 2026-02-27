@@ -9,13 +9,13 @@
             <small class="text-muted fw-bold">إجمالي المتواجدين ({{ $total }})</small>
             <div class="d-flex flex-wrap gap-2 mt-2">
                 <span class="badge bg-success">
-                    <i class="fas fa-user me-1"></i> أعضاء: {{ count($members) }}
+                    <i class="fas fa-user me-1"></i> أعضاء: {{ $total_members }}
                 </span>
                 <span class="badge bg-secondary">
-                    <i class="fas fa-user-secret me-1"></i> زوار: {{ count($guests) }}
+                    <i class="fas fa-user-secret me-1"></i> زوار: {{ $total_guests }}
                 </span>
                 <span class="badge bg-info text-dark">
-                    <i class="fas fa-robot me-1"></i> عناكب بحث: {{ count($bots) }}
+                    <i class="fas fa-robot me-1"></i> عناكب بحث: {{ $total_bots }}
                 </span>
             </div>
         </div>
@@ -26,7 +26,7 @@
             <div class="d-flex flex-wrap gap-2">
                 @foreach($members as $member)
                     <a href="{{ route('user.show', $member['user']->userid) }}" class="user-link" data-bs-toggle="tooltip"
-                        title="{{ $member['location'] }}">
+                        title="{{ is_array($member['location']) ? $member['location']['text'] : $member['location'] }}">
                         <span class="badge bg-light text-dark border">
                             <i class="fas fa-circle text-success small me-1" style="font-size: 8px;"></i>
                             {{ $member['user']->username }}

@@ -16,7 +16,7 @@
             <div class="col-md-4 mb-4">
                 <div class="card glass-card h-100 border-success">
                     <div class="card-body text-center">
-                        <h2 class="display-4 fw-bold text-success">{{ count($members) }}</h2>
+                        <h2 class="display-4 fw-bold text-success">{{ $total_members }}</h2>
                         <p class="text-muted mb-0">أعضاء</p>
                     </div>
                 </div>
@@ -24,7 +24,7 @@
             <div class="col-md-4 mb-4">
                 <div class="card glass-card h-100 border-secondary">
                     <div class="card-body text-center">
-                        <h2 class="display-4 fw-bold text-secondary">{{ count($guests) }}</h2>
+                        <h2 class="display-4 fw-bold text-secondary">{{ $total_guests }}</h2>
                         <p class="text-muted mb-0">زوار</p>
                     </div>
                 </div>
@@ -32,75 +32,66 @@
             <div class="col-md-4 mb-4">
                 <div class="card glass-card h-100 border-info">
                     <div class="card-body text-center">
-                        <h2 class="display-4 fw-bold text-info">{{ count($bots) }}</h2>
+                        <h2 class="display-4 fw-bold text-info">{{ $total_bots }}</h2>
                         <p class="text-muted mb-0">عناكب بحث</p>
                     </div>
                 </div>
             </div>
         </div>
 
-        {{-- Members Table --}}
-        @if(count($members) > 0)
+        {{-- Unified Sessions Table --}}
+        @if(count($users) > 0)
             <div class="card glass-card mb-4">
-                <div class="card-header bg-success text-white">
-                    <h5 class="mb-0"><i class="fas fa-user me-2"></i> الأعضاء</h5>
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i> سجل أحدث التواجد ({{ $total }} متصل)</h5>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
                         <thead>
                             <tr>
-                                <th>العضو</th>
+                                <th>الزائر</th>
                                 <th>المكان</th>
                                 <th>الوقت</th>
                                 <th>IP</th>
-                                <th>المتصفح</th>
+                                <th>المتصفح/البوت</th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach($members as $member)
+                            @foreach($users as $userRow)
                                 <tr>
                                     <td>
-                                        <a href="{{ route('user.show', $member['user']->userid) }}"
-                                            class="fw-bold text-decoration-none">
-                                            {{ $member['user']->username }}
-                                        </a>
+                                        @if($userRow['type'] === 'member')
+                                            <a href="{{ route('user.show', $userRow['user']->userid) }}"
+                                                class="fw-bold text-decoration-none">
+                                                <i class="fas fa-user text-success me-1"></i> {{ $userRow['user']->username }}
+                                            </a>
+                                        @elseif($userRow['type'] === 'bot')
+                                            <span class="text-info fw-bold"><i class="fas fa-robot me-1"></i> عنكبوت بحث</span>
+                                        @else
+                                            <span class="text-secondary fw-bold"><i class="fas fa-user-secret me-1"></i> زائر</span>
+                                        @endif
                                     </td>
-                                    <td><span class="badge bg-light text-dark border">{{ $member['location'] }}</span></td>
-                                    <td class="small text-muted">{{ $member['last_activity'] }}</td>
-                                    <td class="small">{{ $member['ip_address'] }}</td>
-                                    <td class="small text-muted">{{ $member['browser'] }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        @endif
-
-        {{-- Guests Table --}}
-        @if(count($guests) > 0)
-            <div class="card glass-card mb-4">
-                <div class="card-header bg-secondary text-white">
-                    <h5 class="mb-0"><i class="fas fa-user-secret me-2"></i> الزوار</h5>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>IP</th>
-                                <th>المكان</th>
-                                <th>الوقت</th>
-                                <th>المتصفح</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($guests as $guest)
-                                <tr>
-                                    <td class="font-monospace">{{ $guest['ip_address'] }}</td>
-                                    <td><span class="badge bg-light text-dark border">{{ $guest['location'] }}</span></td>
-                                    <td class="small text-muted">{{ $guest['last_activity'] }}</td>
-                                    <td class="small text-muted" title="{{ $guest['user_agent'] }}">
-                                        {{ $guest['browser'] }}
+                                    <td>
+                                        @if(!empty($userRow['location']['url']))
+                                            <a href="{{ $userRow['location']['url'] }}"
+                                                class="badge text-bg-light border text-decoration-none text-dark"
+                                                style="font-size: 0.9em;">
+                                                {!! $userRow['location']['text'] !!}
+                                            </a>
+                                        @else
+                                            <span class="badge text-bg-light text-dark border" style="font-size: 0.9em;">
+                                                {!! $userRow['location']['text'] !!}
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td class="small text-muted">{{ $userRow['last_activity'] }}</td>
+                                    <td class="font-monospace small">{{ $userRow['ip_address'] }}</td>
+                                    <td class="small text-muted" title="{{ $userRow['user_agent'] }}">
+                                        @if($userRow['type'] === 'bot')
+                                            {{ \Illuminate\Support\Str::limit($userRow['user_agent'], 30) }}
+                                        @else
+                                            {{ $userRow['browser'] }}
+                                        @endif
                                         <i class="fas fa-info-circle ms-1 text-muted" style="cursor:help"></i>
                                     </td>
                                 </tr>
@@ -109,36 +100,13 @@
                     </table>
                 </div>
             </div>
-        @endif
 
-        {{-- Bots Table --}}
-        @if(count($bots) > 0)
-            <div class="card glass-card mb-4">
-                <div class="card-header bg-info text-white">
-                    <h5 class="mb-0"><i class="fas fa-robot me-2"></i> عناكب البحث</h5>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>البوت</th>
-                                <th>المكان</th>
-                                <th>الوقت</th>
-                                <th>IP</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($bots as $bot)
-                                <tr>
-                                    <td class="fw-bold">{{ \Illuminate\Support\Str::limit($bot['user_agent'], 30) }}</td>
-                                    <td><span class="badge bg-light text-dark border">{{ $bot['location'] }}</span></td>
-                                    <td class="small text-muted">{{ $bot['last_activity'] }}</td>
-                                    <td class="font-monospace small">{{ $bot['ip_address'] }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
+            <div class="d-flex justify-content-center mt-4">
+                {{ $paginator->links('pagination::bootstrap-5') }}
+            </div>
+        @else
+            <div class="alert alert-warning text-center">
+                لا يوجد أي متصلين في الوقت الحالي.
             </div>
         @endif
     </div>
