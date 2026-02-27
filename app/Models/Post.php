@@ -75,11 +75,25 @@ class Post extends Model
     }
 
     /**
-     * تحويل BBCode إلى HTML
+     * تحويل BBCode إلى HTML (أو إرجاع HTML النظيف إذا تم تعديله بالمحرر الجديد)
      */
     public function getParsedContentAttribute(): string
     {
-        return BBCodeParser::parse($this->pagetext ?? '');
+        $text = (string) ($this->pagetext ?? '');
+
+        if (str_starts_with($text, '<!-- HTML -->')) {
+            $parsed = str_replace('<!-- HTML -->', '', $text);
+        } else {
+            $parsed = BBCodeParser::parse($text);
+        }
+
+        // Apply YouTube Lite Auto-Embed
+        $parsed = app(\App\Services\YouTubeLiteEmbedService::class)->transformContent($parsed);
+
+        // Apply Image Proxy (LIIMS — broken image handling)
+        $parsed = app(\App\Services\ImageProxyService::class)->transformContent($parsed);
+
+        return $parsed;
     }
 
     /**

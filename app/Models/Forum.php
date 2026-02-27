@@ -100,12 +100,14 @@ class Forum extends Model
         return $this->createSlug($this->title);
     }
 
-    /**
-     * رابط القسم
-     */
     public function getUrlAttribute(): string
     {
-        return route('forum.show', ['id' => $this->forumid, 'slug' => $this->slug]);
+        $params = ['id' => $this->forumid];
+        $slug = $this->slug;
+        if (!empty($slug)) {
+            $params['slug'] = $slug;
+        }
+        return route('forum.show', $params);
     }
 
     protected function createSlug(?string $text): string

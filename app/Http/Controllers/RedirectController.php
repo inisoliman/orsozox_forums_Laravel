@@ -73,4 +73,64 @@ class RedirectController extends Controller
 
         return redirect($user->url, 301);
     }
+
+    /**
+     * تحويل روابط أرشيف المواضيع القديمة
+     * /archive/index.php/t-{id}.html → /thread/{id}/{slug}
+     *
+     * SEO: 301 ينقل 100% من Link Equity إلى الرابط الجديد.
+     * يمنع Google من فهرسة رابط الأرشيف كصفحة منفصلة (duplicate content).
+     */
+    public function archiveThread(int $id)
+    {
+        $thread = Thread::find($id);
+        if (!$thread) {
+            abort(404);
+        }
+
+        return redirect($thread->url, 301);
+    }
+
+    /**
+     * تحويل روابط أرشيف الأقسام القديمة
+     * /archive/index.php/f-{id}.html → /forum/{id}/{slug}
+     */
+    public function archiveForum(int $id)
+    {
+        $forum = Forum::find($id);
+        if (!$forum) {
+            abort(404);
+        }
+
+        return redirect($forum->url, 301);
+    }
+
+    /**
+     * تحويل روابط العلامات القديمة
+     * /tags.php?tag=keyword → /search?q=keyword
+     *
+     * SEO: يحافظ على link equity من الباك لينكات القديمة.
+     * الأمان: يُنظّف المُدخل ويمنع parameter pollution.
+     */
+    public function tags(Request $request)
+    {
+        $tag = $request->input('tag');
+
+        // لا يوجد tag → 404
+        if (!$tag || !is_string($tag)) {
+            abort(404);
+        }
+
+        // تنظيف: أخذ أول 100 حرف فقط + إزالة أحرف خطرة
+        $tag = mb_substr(trim($tag), 0, 100);
+        $tag = preg_replace('/[<>"\'\\\\]/', '', $tag);
+
+        if (empty($tag)) {
+            abort(404);
+        }
+
+        // 301 → صفحة البحث
+        return redirect('/search?' . http_build_query(['q' => $tag]), 301);
+    }
 }
+

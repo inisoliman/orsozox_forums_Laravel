@@ -11,7 +11,7 @@ class ThreadController extends Controller
     /**
      * عرض الموضوع مع جميع الردود
      */
-    public function show(int $id, ?string $slug = null, \App\Services\ThreadSeoService $seoService)
+    public function show(\App\Services\ThreadSeoService $seoService, int $id, ?string $slug = null)
     {
         $thread = Thread::with(['forum', 'author'])->visible()->findOrFail($id);
 
@@ -22,15 +22,26 @@ class ThreadController extends Controller
             return response()->view('errors.forbidden', [
                 'title' => 'هذا الموضوع في قسم مقيد',
                 'message' => 'ليس لديك صلاحية لقراءة المواضيع في قسم "' . $forumTitle . '". يرجى تسجيل الدخول أو التواصل مع الإدارة.',
-            ]);
+            ], 403);
         }
 
         // إعادة التوجيه للرابط الصحيح
-        if ($slug !== $thread->slug) {
-            return redirect()->route('thread.show', [
-                'id' => $thread->threadid,
-                'slug' => $thread->slug,
-            ], 301);
+        $correctSlug = $thread->slug;
+        if (empty($slug) || $slug !== $correctSlug) {
+            $redirectParams = ['id' => $thread->threadid];
+            // Only add slug if it's not empty, otherwise routing might fail if the route demands it (wait, web.php has {slug?} so it's fine)
+            if (!empty($correctSlug)) {
+                $redirectParams['slug'] = $correctSlug;
+            }
+
+            $redirectUrl = route('thread.show', $redirectParams);
+
+            $qs = request()->getQueryString();
+            if (!empty($qs)) {
+                $redirectUrl .= '?' . $qs;
+            }
+
+            return redirect($redirectUrl, 301);
         }
 
         // زيادة عدد المشاهدات

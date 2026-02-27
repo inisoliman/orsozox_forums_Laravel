@@ -142,12 +142,14 @@ class Thread extends Model
         return \Carbon\Carbon::createFromTimestamp($this->lastpost);
     }
 
-    /**
-     * رابط الموضوع
-     */
     public function getUrlAttribute(): string
     {
-        return route('thread.show', ['id' => $this->threadid, 'slug' => $this->slug]);
+        $params = ['id' => $this->threadid];
+        $slug = $this->slug;
+        if (!empty($slug)) {
+            $params['slug'] = $slug;
+        }
+        return route('thread.show', $params);
     }
 
     /**

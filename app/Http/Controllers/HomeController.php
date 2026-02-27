@@ -70,6 +70,7 @@ class HomeController extends Controller
                 'threads' => Thread::visible()->count(),
                 'forums' => Forum::active()->count(),
                 'users' => \App\Models\User::count(),
+                'posts' => \App\Models\Post::visible()->count(),
             ];
         });
 

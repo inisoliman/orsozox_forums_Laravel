@@ -59,13 +59,46 @@ class ThreadSeoService
             'modified_time' => $modifiedTime->toIso8601String(),
             'keywords' => $keywords,
             'author_name' => strip_tags($thread->author->username ?? $thread->postusername ?? 'زائر'),
+            'author_url' => $thread->author ? route('user.show', $thread->author->userid) : null,
             'forum_name' => $forumName,
             'url' => $thread->url,
             'views' => $thread->views,
             'replies' => $thread->replycount,
             'raw_text' => $firstPost ? mb_substr($firstPost->plain_text ?? '', 0, 500, 'UTF-8') : '',
             'is_question' => preg_match('/^(كيف|هل|لماذا|متى|أين|ما|من|ماذا)\s/iu', $title) || mb_strpos($title, '؟') !== false || mb_strpos($title, '?') !== false,
+            'comments' => $this->fetchLatestComments($thread),
         ];
+    }
+
+    /**
+     * Fetch 3-5 latest replies for JSON-LD "comment" property.
+     */
+    protected function fetchLatestComments(Thread $thread): array
+    {
+        $replies = $thread->posts()
+            ->visible()
+            ->where('postid', '!=', $thread->firstpostid)
+            ->orderBy('dateline', 'desc')
+            ->limit(5)
+            ->with(['author:userid,username'])
+            ->get(['postid', 'userid', 'username', 'pagetext', 'dateline']);
+
+        $comments = [];
+        foreach ($replies as $reply) {
+            $comments[] = [
+                '@type' => 'Comment',
+                'author' => [
+                    '@type' => 'Person',
+                    'name' => strip_tags($reply->author->username ?? $reply->username ?? 'زائر'),
+                    'url' => $reply->author ? route('user.show', $reply->author->userid) : null,
+                ],
+                'datePublished' => $reply->created_date->toIso8601String(),
+                'text' => SeoHelper::description($reply->pagetext, 200),
+                'url' => route('post.show', ['postid' => $reply->postid]),
+            ];
+        }
+
+        return $comments;
     }
 
     /**

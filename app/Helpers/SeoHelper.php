@@ -71,6 +71,7 @@ class SeoHelper
             'author' => [
                 '@type' => 'Person',
                 'name' => $data['author'] ?? '',
+                'url' => $data['author_url'] ?? '',
             ],
             'publisher' => [
                 '@type' => 'Organization',
@@ -96,6 +97,7 @@ class SeoHelper
             ],
             'text' => mb_substr($data['text'] ?? '', 0, 500, 'UTF-8'),
             'url' => $data['url'] ?? '',
+            'comment' => $data['comments'] ?? [],
         ];
 
         if (!empty($data['forum'])) {

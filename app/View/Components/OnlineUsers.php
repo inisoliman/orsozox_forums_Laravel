@@ -8,8 +8,10 @@ use Illuminate\View\Component;
 class OnlineUsers extends Component
 {
     public $total;
+    public $total_members;
+    public $total_guests;
+    public $total_bots;
     public $members;
-    public $guests;
     public $bots;
 
     /**
@@ -22,9 +24,20 @@ class OnlineUsers extends Component
         $data = $service->getOnlineUsers();
 
         $this->total = $data['total'];
-        $this->members = $data['members'];
-        $this->guests = $data['guests'];
-        $this->bots = $data['bots'];
+        $this->total_members = $data['total_members'];
+        $this->total_guests = $data['total_guests'];
+        $this->total_bots = $data['total_bots'];
+
+        $this->members = [];
+        $this->bots = [];
+
+        foreach ($data['users'] as $user) {
+            if ($user['type'] === 'member') {
+                $this->members[] = $user;
+            } elseif ($user['type'] === 'bot') {
+                $this->bots[] = $user;
+            }
+        }
     }
 
     /**

@@ -26,9 +26,11 @@ class OnlineUsersController extends Controller
 
         return view('online.index', [
             'total' => $data['total'],
-            'members' => $data['members'],
-            'guests' => $data['guests'],
-            'bots' => $data['bots'],
+            'total_members' => $data['total_members'],
+            'total_guests' => $data['total_guests'],
+            'total_bots' => $data['total_bots'],
+            'users' => $data['users'],
+            'paginator' => $data['paginator'],
         ]);
     }
 }
