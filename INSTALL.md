@@ -125,3 +125,116 @@ php artisan view:cache
 > **ملاحظة:** عدم إضافة `RewriteBase /forums/public/` في الملف الثاني هو السبب الرئيسي لخطأ 404.
 
 ### 7. الخاتمة
+
+---
+
+## 🆕 تحديثات فبراير 2026 — ميزات جديدة
+
+### 8. نشر YouTube Lite Embed ▶️
+
+**ارفع الملفات التالية:**
+```
+app/Services/YouTubeLiteEmbedService.php
+public/css/yt-lite.css
+public/js/yt-lite.js
+resources/views/thread/show.blade.php     (تأكد أن yt-lite.js خارج @auth)
+app/Models/Post.php                        (يحتوي على Content Pipeline)
+```
+
+**امسح الكاش:**
+```bash
+php artisan config:clear && php artisan view:clear
+```
+
+---
+
+### 9. نشر LIIMS — إدارة الصور القديمة 🖼️
+
+#### الخطوة 1: إنشاء الجداول الجديدة
+شغّل هذين الأمرين في **phpMyAdmin**:
+
+```sql
+-- جدول الإعدادات
+CREATE TABLE IF NOT EXISTS site_settings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    `key` VARCHAR(255) UNIQUE NOT NULL,
+    value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- إعدادات افتراضية
+INSERT IGNORE INTO site_settings (`key`, value) VALUES ('image_proxy_enabled', '0');
+INSERT IGNORE INTO site_settings (`key`, value) VALUES ('image_auto_cleanup', '0');
+
+-- جدول كاش الصور
+CREATE TABLE IF NOT EXISTS image_cache (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    url_hash VARCHAR(64) UNIQUE NOT NULL,
+    original_url TEXT NOT NULL,
+    status ENUM('pending','valid','broken') DEFAULT 'pending',
+    response_code INT NULL,
+    content_type VARCHAR(100) NULL,
+    content_length INT NULL,
+    last_checked_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_status (status),
+    INDEX idx_last_checked (last_checked_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+```
+
+#### الخطوة 2: رفع الملفات
+```
+app/Models/ImageCache.php
+app/Services/ImageProxyService.php
+app/Services/ImageValidationService.php
+app/Services/SettingsService.php
+app/Http/Controllers/ImageProxyController.php
+app/Jobs/ScanImagesJob.php
+app/Console/Commands/ScanImagesCommand.php
+app/Filament/Pages/ManageImages.php
+resources/views/filament/pages/manage-images.blade.php
+public/css/image-proxy.css
+public/images/image-unavailable.png
+routes/web.php                              (يحتوي على route جديد)
+resources/views/thread/show.blade.php       (يحتوي على CSS link)
+```
+
+#### الخطوة 3: تفعيل النظام
+1. امسح الكاش: `https://orsozox.com/forums/clear-cache.php`
+2. ادخل لوحة التحكم: `/admin/manage-images`
+3. فعّل Image Proxy
+
+#### الخطوة 4: فحص الصور (اختياري)
+```bash
+cd public_html/forums
+php artisan images:scan --limit=500 --queue
+php artisan queue:work --stop-when-empty
+```
+
+---
+
+### 10. نشر صفحات الأخطاء المخصصة 🚨
+
+**ارفع الملفات التالية:**
+```
+resources/views/errors/404.blade.php
+resources/views/errors/403.blade.php
+resources/views/errors/419.blade.php
+resources/views/errors/500.blade.php
+resources/views/errors/503.blade.php
+public/css/error-pages.css
+public/js/error-pages.js
+```
+
+**للتجربة:** ادخل أي رابط غير موجود:
+```
+https://orsozox.com/forums/this-page-does-not-exist
+```
+
+**تعمل تلقائياً** — لا تحتاج إعدادات إضافية.
+
+---
+
+> **تم تحديث الدليل — فبراير 2026**
