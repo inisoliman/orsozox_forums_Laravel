@@ -46,7 +46,12 @@ class PageController extends Controller
             'url' => route('page.contact'),
         ];
 
-        return view('pages.contact', compact('seoData'));
+        // المضي قدماً في توليد أرقام عشوائية لعمل كابتشا حسابي
+        $num1 = rand(1, 10);
+        $num2 = rand(1, 10);
+        session(['captcha_answer' => $num1 + $num2]);
+
+        return view('pages.contact', compact('seoData', 'num1', 'num2'));
     }
 
     /**
@@ -58,7 +63,19 @@ class PageController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|max:255',
             'message' => 'required|string',
+            'captcha' => [
+                'required',
+                'numeric',
+                function ($attribute, $value, $fail) {
+                    if ($value != session('captcha_answer')) {
+                        $fail('إجابة التحقق البشري غير صحيحة، يرجى المحاولة مرة أخرى.');
+                    }
+                }
+            ],
         ]);
+
+        // مسح الكابتشا من السيشن حتى لا يتم إعادة استخدامها
+        session()->forget('captcha_answer');
 
         $data = $request->only('name', 'email', 'message');
 

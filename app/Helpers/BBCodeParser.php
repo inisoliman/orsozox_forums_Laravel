@@ -97,13 +97,21 @@ class BBCodeParser
         do {
             $originalText = $text;
 
-            // URL — روابط
-            $text = preg_replace('/\[url=(?:&quot;|&#039;|["\'])?(.*?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$2</a>', $text);
-            $text = preg_replace('/\[url\](.*?)\[\/url\]/is', '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$1</a>', $text);
+            // URL — روابط (Modified to display as stylish buttons)
+            $text = preg_replace(
+                '/\[url=(?:&quot;|&#039;|["\'])?(.*?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/url\]/is',
+                '<div class="my-2"><a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link-styled"><i class="fas fa-external-link-alt me-2"></i>$2</a></div>',
+                $text
+            );
+            $text = preg_replace(
+                '/\[url\](.*?)\[\/url\]/is',
+                '<div class="my-2"><a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link-styled"><i class="fas fa-external-link-alt me-2"></i>اضغط هنا للذهاب إلى الرابط</a></div>',
+                $text
+            );
 
             // Email — بريد إلكتروني
-            $text = preg_replace('/\[email\]([^\[]+)\[\/email\]/is', '<a href="mailto:$1">$1</a>', $text);
-            $text = preg_replace('/\[email=(?:&quot;|&#039;|["\'])?([^\]]+?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/email\]/is', '<a href="mailto:$1">$2</a>', $text);
+            $text = preg_replace('/\[email\]([^\[]+)\[\/email\]/is', '<a href="mailto:$1" class="bb-link">$1</a>', $text);
+            $text = preg_replace('/\[email=(?:&quot;|&#039;|["\'])?([^\]]+?)(?:&quot;|&#039;|["\'])?\](.*?)\[\/email\]/is', '<a href="mailto:$1" class="bb-link">$2</a>', $text);
 
             // Image — صور
             $text = preg_replace('/\[img\](https?:\/\/[^\[]+)\[\/img\]/is', '<img src="$1" class="img-fluid bb-img" loading="lazy" alt="صورة">', $text);
@@ -149,10 +157,10 @@ class BBCodeParser
         $text = preg_replace('/\[hr\]/i', '<hr class="bb-hr">', $text);
 
         // تحويل روابط عادية إلى روابط قابلة للنقر (خارج التاغات)
-        // يجب أن نكون حذرين لكي لا نفسد الروابط التي داخل <a href="...">
+        // نستخدم المظهر الجديد كزر أيضاً
         $text = preg_replace(
             '/(?<!href="|href=\'|src="|src=\')(?<!>)(https?:\/\/[^\s<\[]+)/i',
-            '<a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link">$1</a>',
+            '<div class="my-2"><a href="$1" target="_blank" rel="noopener noreferrer" class="bb-link-styled"><i class="fas fa-external-link-alt me-2"></i>اضغط هنا للذهاب إلى الرابط</a></div>',
             $text
         );
 

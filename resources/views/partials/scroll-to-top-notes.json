@@ -1,0 +1,7 @@
+{
+  "scroll-to-top": {
+    "status": "COMPATIBLE_WITH_CSS",
+    "css_source": "public/css/app.css",
+    "note": "Uses existing #scrollToTopBtn + .scroll-to-top CSS classes. Do NOT add inline display:none."
+  }
+}

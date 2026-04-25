@@ -49,7 +49,11 @@ class SitemapController extends Controller
 
         $xml .= '</sitemapindex>';
 
-        return response($xml, 200)->header('Content-Type', 'application/xml; charset=utf-8');
+        return response($xml, 200)
+            ->header('Content-Type', 'application/xml; charset=utf-8')
+            ->header('Cache-Control', 'public, max-age=3600')
+            ->header('X-Robots-Tag', 'all')
+            ->header('X-UA-Compatible', 'IE=edge');
     }
 
     /**
@@ -66,7 +70,7 @@ class SitemapController extends Controller
             $xml .= $this->urlTag(url('/'), now()->toW3cString(), 'daily', '1.0');
 
             // الأقسام
-            $forums = Forum::active()->get();
+            $forums = Forum::active()->get(['forumid', 'title', 'parentid', 'options']);
             foreach ($forums as $forum) {
                 $xml .= $this->urlTag($forum->url, now()->toW3cString(), 'daily', '0.8');
             }
@@ -75,7 +79,10 @@ class SitemapController extends Controller
             return $xml;
         });
 
-        return response($xml, 200)->header('Content-Type', 'application/xml; charset=utf-8');
+        return response($xml, 200)
+            ->header('Content-Type', 'application/xml; charset=utf-8')
+            ->header('Cache-Control', 'public, max-age=86400')
+            ->header('X-Robots-Tag', 'all');
     }
 
     /**
@@ -109,7 +116,10 @@ class SitemapController extends Controller
             return $xml;
         });
 
-        return response($xml, 200)->header('Content-Type', 'application/xml; charset=utf-8');
+        return response($xml, 200)
+            ->header('Content-Type', 'application/xml; charset=utf-8')
+            ->header('Cache-Control', 'public, max-age=86400')
+            ->header('X-Robots-Tag', 'all');
     }
 
     /**
@@ -142,7 +152,10 @@ class SitemapController extends Controller
             return $xml;
         });
 
-        return response($xml, 200)->header('Content-Type', 'application/xml; charset=utf-8');
+        return response($xml, 200)
+            ->header('Content-Type', 'application/xml; charset=utf-8')
+            ->header('Cache-Control', 'public, max-age=86400')
+            ->header('X-Robots-Tag', 'all');
     }
 
     private function urlTag(string $loc, string $lastmod, string $changefreq, string $priority): string

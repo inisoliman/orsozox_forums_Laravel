@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use App\Traits\HasSlug;
 
 class Forum extends Model
 {
@@ -110,17 +111,7 @@ class Forum extends Model
         return route('forum.show', $params);
     }
 
-    protected function createSlug(?string $text): string
-    {
-        if (empty($text))
-            return 'forum';
-        $text = trim($text);
-        $text = preg_replace('/\s+/u', '-', $text);
-        $text = preg_replace('/[^\p{L}\p{N}\-]/u', '', $text);
-        $text = preg_replace('/-+/', '-', $text);
-        $text = trim($text, '-');
-        return $text ?: 'forum';
-    }
+    use HasSlug;
     /**
      * الصلاحيات الخاصة بهذا القسم
      */
@@ -142,7 +133,7 @@ class Forum extends Model
         $usergroupId = $user ? (int) $user->usergroupid : 1;
 
         // المشرفون والإدارة يرون كل الأقسام
-        if (in_array($usergroupId, [5, 6, 7])) {
+        if (in_array($usergroupId, config('forum.admin_usergroup_ids', [5, 6, 7]))) {
             return $query;
         }
 

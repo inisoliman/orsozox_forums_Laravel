@@ -9,25 +9,85 @@ use Illuminate\Support\Facades\Session as LaravelSession;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Session as VBSession;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class UpdateLegacySession
 {
     /**
+     * User agents to skip (bots/crawlers)
+     * Bingbot should NOT be throttled to avoid HTTP 429 errors
+     */
+    private array $botPatterns = [
+        'Googlebot', 'Bingbot', 'Slurp', 'DuckDuckBot', 'Baiduspider',
+        'YandexBot', 'Sogou', 'facebookexternalhit', 'Twitterbot',
+        'rogerbot', 'linkedinbot', 'embedly', 'semrushbot', 'ahrefsbot',
+        'dotbot', 'petalbot', 'MJ12bot', 'crawler', 'spider', 'bot/',
+        'HeadlessChrome', 'Lighthouse', 'GTmetrix', 'PageSpeed',
+    ];
+
+    /**
+     * Extensions to skip (static assets)
+     */
+    private array $skipExtensions = [
+        'css', 'js', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'svg',
+        'ico', 'woff', 'woff2', 'ttf', 'eot', 'map',
+    ];
+
+    /**
      * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
      */
     public function handle(Request $request, Closure $next): Response
     {
         $response = $next($request);
 
         try {
+            // Skip bots — they don't need session tracking
+            $userAgent = $request->userAgent() ?? '';
+            if ($this->isBot($userAgent)) {
+                return $response;
+            }
+
+            // Skip static asset requests
+            $path = $request->path();
+            if ($this->isStaticAsset($path)) {
+                return $response;
+            }
+
+            // Throttle: update session at most once per 60 seconds per user
+            $throttleKey = 'session_update_' . ($request->ip() ?? 'unknown');
+            if (Cache::has($throttleKey)) {
+                return $response;
+            }
+            Cache::put($throttleKey, true, 60);
+
             $this->updateSession($request);
         } catch (\Exception $e) {
             // Fails silently to avoid breaking the site
         }
 
         return $response;
+    }
+
+    /**
+     * Check if the user agent is a bot/crawler
+     */
+    protected function isBot(string $userAgent): bool
+    {
+        foreach ($this->botPatterns as $pattern) {
+            if (stripos($userAgent, $pattern) !== false) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Check if the request is for a static asset
+     */
+    protected function isStaticAsset(string $path): bool
+    {
+        $ext = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        return in_array($ext, $this->skipExtensions);
     }
 
     protected function updateSession(Request $request)
@@ -79,11 +139,9 @@ class UpdateLegacySession
     protected function createSession($hash, $request, $ip, $path, $userAgent)
     {
         // Calculate idhash (vBulletin simple equivalent)
-        // vB uses: md5($userAgent . $ip) usually, but we can just use a random string or the ip
         $idhash = md5($ip);
 
         // Check if a session already exists for this IP/UserAgent to avoid duplicates for Guests
-        // Note: For guests, vBulletin allows multiple sessions per IP basically, but let's try to be clean
         if (!Auth::check()) {
             $existing = VBSession::where('host', $ip)
                 ->where('useragent', $userAgent)

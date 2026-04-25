@@ -113,7 +113,20 @@ class ImageUploadController extends Controller
                 ], 400);
             }
 
+            // 🔒 SSRF Protection: Validate against blocked IPs BEFORE downloading
+            $validator = new \App\Services\ImageValidationService();
+            $validationResult = $validator->performCheck($url);
+
+            if ($validationResult['status'] === 'broken') {
+                return response()->json([
+                    'uploaded' => false,
+                    'error' => ['message' => 'رابط غير مسموح به.'],
+                ], 400);
+            }
+
             // Download the image with timeout
+            // Note: verify_peer is disabled for shared-hosting compatibility.
+            // The request is already scoped to an external image URL (validated above).
             $context = stream_context_create([
                 'http' => [
                     'timeout' => 10,

@@ -37,6 +37,14 @@
     </section>
 
     <div class="container">
+        {{-- Feed Ad --}}
+        @if($themeSettings->shouldShowAds() && $adCode = $themeSettings->get('ads.feed_code'))
+            <div class="ad-slot ad-feed mb-4 text-center">
+                <div class="ad-label small text-muted mb-1">- إعلان -</div>
+                {!! $adCode !!}
+            </div>
+        @endif
+
         <div class="row">
 
             {{-- Right Column: Forums List --}}
@@ -133,15 +141,96 @@
             <div class="col-lg-4 order-1 order-lg-2 mb-4">
 
                 {{-- Search Widget --}}
-                <div class="glass-card p-4 sidebar-widget">
+                <div class="glass-card p-4 sidebar-widget position-relative" style="z-index: 10;">
                     <h6 class="widget-title">بحث سريع</h6>
-                    <form action="{{ route('search') }}" method="GET">
+                    <form action="{{ route('search') }}" method="GET" id="quickSearchForm">
                         <div class="input-group">
-                            <input type="text" name="q" class="form-control" placeholder="اكتب بحثك هنا..." required>
+                            <input type="text" name="q" id="quickSearchInput" class="form-control"
+                                placeholder="اكتب بحثك هنا..." required autocomplete="off">
                             <button class="btn btn-primary" type="submit"><i class="fas fa-search"></i></button>
                         </div>
                     </form>
+                    {{-- Ajax Suggestions Dropdown --}}
+                    <div id="quickSearchSuggestions"
+                        class="position-absolute w-100 shadow rounded-3 bg-white d-none overflow-hidden"
+                        style="top: 100%; left: 0; max-height: 350px; overflow-y: auto; border: 1px solid var(--border-color);">
+                    </div>
                 </div>
+
+                @push('scripts')
+                    <script>
+                        document.addEventListener('DOMContentLoaded', function () {
+                            const input = document.getElementById('quickSearchInput');
+                            const suggestions = document.getElementById('quickSearchSuggestions');
+                            let timeout = null;
+
+                            input.addEventListener('input', function () {
+                                clearTimeout(timeout);
+                                const query = this.value.trim();
+
+                                if (query.length < 3) {
+                                    suggestions.classList.add('d-none');
+                                    return;
+                                }
+
+                                // إضافة علامة تحميل مؤقتة
+                                suggestions.innerHTML = '<div class="p-3 text-center text-muted"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</div>';
+                                suggestions.classList.remove('d-none');
+
+                                timeout = setTimeout(() => {
+                                    fetch(`{{ url('/search/suggest') }}?q=${encodeURIComponent(query)}`, {
+                                        headers: {
+                                            'Accept': 'application/json',
+                                            'X-Requested-With': 'XMLHttpRequest'
+                                        }
+                                    })
+                                        .then(response => {
+                                            if (!response.ok) throw new Error('Network response was not ok');
+                                            return response.json();
+                                        })
+                                        .then(data => {
+                                            if (data.results && data.results.length > 0) {
+                                                let html = '<div class="list-group list-group-flush">';
+                                                data.results.forEach(item => {
+                                                    html += `<a href="${item.url}" class="list-group-item list-group-item-action py-2 border-bottom">
+                                                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                                                <h6 class="mb-1 text-truncate text-primary fw-bold" style="font-size: 0.9rem; max-width: 80%;">${item.title}</h6>
+                                                            </div>
+                                                            <div class="d-flex justify-content-between align-items-center mt-1">
+                                                                <small class="text-muted"><i class="fas fa-folder me-1 text-warning"></i>${item.forum_title}</small>
+                                                                <small class="text-muted-custom"><i class="fas fa-user-circle me-1"></i>${item.author_name}</small>
+                                                            </div>
+                                                        </a>`;
+                                                });
+                                                html += `<a href="{{ url('/search') }}?q=${encodeURIComponent(query)}" class="list-group-item list-group-item-action text-center text-accent fw-bold py-2 bg-light">عرض كل النتائج <i class="fas fa-arrow-left ms-1"></i></a>`;
+                                                html += '</div>';
+                                                suggestions.innerHTML = html;
+                                            } else {
+                                                suggestions.innerHTML = `<div class="p-3 text-muted small text-center text-danger">لا توجد نتائج سريعة لـ "${query}".<br><br><span class="text-dark">اضغط Enter للبحث الشامل.</span></div>`;
+                                            }
+                                        }).catch(err => {
+                                            console.error('Search error:', err);
+                                            suggestions.innerHTML = '<div class="p-3 text-muted small text-center">حدث خطأ في الاتصال. اضغط Enter للبحث الشامل.</div>';
+                                        });
+                                }, 400); // 400ms debounce
+                            });
+
+                            // Hide dropdown when clicking outside
+                            document.addEventListener('click', function (e) {
+                                if (!input.contains(e.target) && !suggestions.contains(e.target)) {
+                                    suggestions.classList.add('d-none');
+                                }
+                            });
+
+                            // Show dropdown again when clicking on input if it has value
+                            input.addEventListener('focus', function () {
+                                if (this.value.trim().length >= 3 && suggestions.innerHTML.trim() !== '') {
+                                    suggestions.classList.remove('d-none');
+                                }
+                            });
+                        });
+                    </script>
+                @endpush
 
                 {{-- Sidebar Ad --}}
                 @if($themeSettings->shouldShowAds() && $sidebarAd = $themeSettings->get('ads.sidebar_code'))

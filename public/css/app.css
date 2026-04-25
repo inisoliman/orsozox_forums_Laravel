@@ -1439,3 +1439,74 @@ footer .fw-bold {
 .social-telegram {
     background: #0088cc;
 }
+
+/* ===================== Scroll to Top Button ===================== */
+#scrollToTopBtn,
+.scroll-to-top {
+    position: fixed !important;
+    bottom: 30px !important;
+    left: 30px !important;
+    background-color: #0d6efd !important;
+    color: white !important;
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    border: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.5rem !important;
+    z-index: 99999 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5) !important;
+    cursor: pointer !important;
+    transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: translateY(20px) !important;
+}
+
+#scrollToTopBtn.show,
+.scroll-to-top.show {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+}
+
+#scrollToTopBtn:hover,
+.scroll-to-top:hover {
+    background-color: #0b5ed7 !important;
+    transform: scale(1.1) translateY(0) !important;
+    color: white !important;
+}
+
+/* ===================== BBCode Styled Links (Buttons) ===================== */
+.bb-link-styled {
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, var(--primary-blue), #0266a2);
+    color: #ffffff !important;
+    padding: 10px 20px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-weight: 700;
+    box-shadow: 0 4px 15px rgba(2, 136, 209, 0.3);
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.bb-link-styled:hover {
+    background: linear-gradient(135deg, #0266a2, var(--primary-blue));
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(2, 136, 209, 0.4);
+    color: #ffffff !important;
+}
+
+.bb-link-styled i {
+    font-size: 1.1em;
+}

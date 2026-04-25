@@ -98,14 +98,25 @@ class SearchController extends Controller
             try {
                 $results = $this->searchService->advancedSearch($query, $filters, $sort);
 
-                // Get excerpts — use first post of each thread (fast, no FULLTEXT needed)
-                foreach ($results as $thread) {
-                    $pagetext = $this->searchService->getFirstPostExcerpt($thread->threadid);
-                    $excerpts[$thread->threadid] = SearchHighlightHelper::highlight(
-                        $pagetext ?? '',
-                        $query,
-                        280
-                    );
+                // Batch-load excerpts (fix N+1: single query instead of loop)
+                if ($results && count($results) > 0) {
+                    $threadIds = collect($results)->pluck('threadid')->all();
+                    $firstPosts = \App\Models\Post::whereIn('threadid', $threadIds)
+                        ->where('visible', 1)
+                        ->orderBy('dateline', 'asc')
+                        ->get()
+                        ->groupBy('threadid')
+                        ->map(fn($posts) => $posts->first());
+
+                    foreach ($results as $thread) {
+                        $post = $firstPosts->get($thread->threadid);
+                        $pagetext = $post ? strip_tags($post->pagetext) : '';
+                        $excerpts[$thread->threadid] = SearchHighlightHelper::highlight(
+                            $pagetext,
+                            $query,
+                            280
+                        );
+                    }
                 }
             } catch (\Exception $e) {
                 \Illuminate\Support\Facades\Log::error('Search error: ' . $e->getMessage());

@@ -191,6 +191,65 @@ window.AppEditor = (function () {
     }
 
     /**
+     * Create a collapsible panel showing the raw BBCode/HTML from the database
+     */
+    function createRawCodePanel(rawText) {
+        const panel = document.createElement('div');
+        panel.className = 'raw-code-panel mb-3';
+        panel.style.cssText = 'border: 1px solid var(--border-color, #444); border-radius: 8px; overflow: hidden;';
+
+        const header = document.createElement('button');
+        header.type = 'button';
+        header.className = 'btn w-100 text-start d-flex justify-content-between align-items-center';
+        header.style.cssText = 'background: #1e293b; color: #94a3b8; padding: 10px 16px; border: none; border-radius: 8px 8px 0 0; font-size: 0.85rem;';
+        header.innerHTML = '<span><i class="fas fa-database me-2"></i>الكود الأصلي في قاعدة البيانات</span><i class="fas fa-chevron-up"></i>';
+
+        const body = document.createElement('div');
+        body.style.cssText = 'background: #0f172a; padding: 16px; max-height: 300px; overflow-y: auto; display: block;';
+
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'margin: 0; white-space: pre-wrap; word-break: break-all; font-family: "Courier New", monospace; font-size: 0.8rem; color: #e2e8f0; direction: ltr; text-align: left; line-height: 1.6;';
+        pre.textContent = rawText;
+
+        body.appendChild(pre);
+        panel.appendChild(header);
+        panel.appendChild(body);
+
+        // Toggle collapse
+        let isOpen = true;
+        header.addEventListener('click', () => {
+            isOpen = !isOpen;
+            body.style.display = isOpen ? 'block' : 'none';
+            const icon = header.querySelector('.fa-chevron-up, .fa-chevron-down');
+            if (icon) icon.className = isOpen ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+        });
+
+        return panel;
+    }
+
+    /**
+     * Fetch raw BBCode from the database via AJAX
+     */
+    async function fetchRawCode(postId) {
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            const response = await fetch('/forums/post/' + postId + '/ajax/raw', {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken ? csrfToken.getAttribute('content') : ''
+                }
+            });
+            const result = await response.json();
+            if (result.success && result.raw_pagetext) {
+                return result.raw_pagetext;
+            }
+        } catch (e) {
+            console.warn('Could not fetch raw code:', e);
+        }
+        return null;
+    }
+
+    /**
      * Start editing a post (reply)
      */
     async function startPostEdit(postId, updateUrl, uploadUrl) {
@@ -209,6 +268,13 @@ window.AppEditor = (function () {
         const editorWrapper = document.createElement('div');
         editorWrapper.id = 'editor-wrapper-' + postId;
         editorWrapper.className = 'editor-wrapper active mt-2';
+
+        // Fetch and show raw BBCode panel
+        const rawCode = await fetchRawCode(postId);
+        if (rawCode) {
+            const rawPanel = createRawCodePanel(rawCode);
+            editorWrapper.appendChild(rawPanel);
+        }
 
         const editorTarget = document.createElement('div');
         editorTarget.innerHTML = originalHtml;
@@ -308,6 +374,13 @@ window.AppEditor = (function () {
         const editorWrapper = document.createElement('div');
         editorWrapper.id = 'editor-wrapper-' + postId;
         editorWrapper.className = 'editor-wrapper active mt-2';
+
+        // Fetch and show raw BBCode panel
+        const rawCode = await fetchRawCode(postId);
+        if (rawCode) {
+            const rawPanel = createRawCodePanel(rawCode);
+            editorWrapper.appendChild(rawPanel);
+        }
 
         const editorTarget = document.createElement('div');
         editorTarget.innerHTML = originalHtml;

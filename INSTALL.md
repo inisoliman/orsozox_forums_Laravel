@@ -1,240 +1,385 @@
-# 🚀 دليل إصلاح وتنظيف المنتدى (تحديث: 18 فبراير)
+# 🚀 دليل تثبيت المنتدى على Hostinger — خطوة بخطوة
+# Forum Installation Guide — Hostinger Shared Hosting
 
-لقد قمنا بتحديث الكود لإصلاح المشاكل التي ظهرت على الموقع الحي (مسار `/forums/` لا يعمل، وظهور أكواد HTML في العناوين).
+> المسار المستهدف: `public_html/forums/`
+> الرابط النهائي: `https://yourdomain.com/forums/`
 
 ---
 
-## الخطوات المطلوب تنفيذها الآن على السيرفر 👇
+## 📋 المتطلبات
+- استضافة Hostinger (Business أو Premium)
+- PHP 8.2 أو أعلى
+- MySQL 5.7 أو أعلى
+- قاعدة بيانات vBulletin 3.8 موجودة على نفس السيرفر
+- وصول SSH (Terminal) في Hostinger
 
-### الخطوة 1: تحديث الملفات 📤
-يجب رفع الملفات التالية واستبدال القديمة:
-1. `app/Models/Forum.php` (لإصلاح العناوين في الأقسام)
-2. `app/Models/Thread.php` (لإصلاح العناوين في المواضيع)
-3. `app/Providers/AppServiceProvider.php` (لإزالة `/public` من الروابط)
-4. `.htaccess` (موجود في مجلد `public_html/forums/`) (لإصلاح صفحة 404)
+---
 
-### الخطوة 2: تعديل ملف .htaccess ⚙️
+## الخطوة 1: تجهيز الملفات على جهازك 🖥️
 
-افتح الملف `public_html/forums/.htaccess` وتأكد أن محتواه كالتالي بالضبط:
+### 1.1 — تنظيم المجلد
 
-```apache
-<IfModule mod_rewrite.c>
-    RewriteEngine On
-    
-    # Handle the root request to go to public/
-    RewriteRule ^$ public/ [L]
-    
-    # Handle all other non-public requests to go to public/
-    RewriteRule ^((?!public/).*)$ public/$1 [L,NC]
-</IfModule>
+المشروع الحالي موجود في مجلد `forums` على جهازك. تأكد أن الهيكل كالتالي:
+
+```
+forums/
+├── app/
+├── bootstrap/
+├── config/
+├── public/
+│   ├── .htaccess
+│   ├── index.php
+│   ├── css/app.css
+│   └── robots.txt
+├── resources/
+├── routes/
+├── storage/
+├── .env.example
+├── .htaccess
+├── artisan
+└── composer.json
 ```
 
-### الخطوة 3: تحديث ملف .env 📝
+### 1.2 — اضغط المشروع كـ ZIP
 
-تأكد أن الرابط في ملف `.env` هو (بدون /public):
+اضغط مجلد `forums` بالكامل كملف ZIP واحد اسمه `forums.zip`.
+
+---
+
+## الخطوة 2: الدخول إلى لوحة تحكم Hostinger 🌐
+
+1. اذهب إلى [hpanel.hostinger.com](https://hpanel.hostinger.com)
+2. سجّل الدخول بحسابك
+3. اختر الموقع المطلوب من قائمة المواقع
+4. ستظهر لك لوحة التحكم الرئيسية
+
+---
+
+## الخطوة 3: التأكد من إصدار PHP ⚙️
+
+1. من لوحة التحكم، اذهب إلى: **Advanced** → **PHP Configuration**
+2. تأكد أن الإصدار **PHP 8.2** أو أعلى
+3. إذا كان أقل، غيّره إلى **8.2** واضغط **Update**
+4. في نفس الصفحة، تأكد من تفعيل هذه الإضافات:
+   - ✅ `mbstring`
+   - ✅ `openssl`
+   - ✅ `pdo_mysql`
+   - ✅ `tokenizer`
+   - ✅ `xml`
+   - ✅ `ctype`
+   - ✅ `json`
+   - ✅ `fileinfo`
+   - ✅ `gd` أو `imagick`
+
+---
+
+## الخطوة 4: رفع الملفات 📤
+
+### الطريقة أ: عبر File Manager (سهلة)
+
+1. من لوحة التحكم اذهب إلى: **Files** → **File Manager**
+2. افتح مجلد `public_html`
+3. اضغط زر **Upload** في الأعلى
+4. ارفع ملف `forums.zip`
+5. بعد اكتمال الرفع، اضغط كليك يمين على `forums.zip`
+6. اختر **Extract** → تأكد أن مسار الاستخراج هو `public_html/`
+7. بعد الاستخراج ستجد: `public_html/forums/` بداخله كل الملفات
+8. احذف ملف `forums.zip` لتوفير المساحة
+
+### الطريقة ب: عبر FTP (للملفات الكبيرة)
+
+1. استخدم برنامج FileZilla
+2. بيانات الـ FTP موجودة في: **Files** → **FTP Accounts**
+3. اتصل بالسيرفر
+4. ارفع مجلد `forums` إلى داخل `public_html/`
+
+---
+
+## الخطوة 5: إعداد ملف البيئة (.env) 📝
+
+1. من **File Manager**، ادخل مجلد `public_html/forums/`
+2. ابحث عن ملف `.env.example`
+3. اضغط كليك يمين → **Rename** → سمّه `.env`
+4. اضغط كليك يمين على `.env` → **Edit**
+5. عدّل المحتوى كالتالي:
 
 ```env
-APP_URL=https://orsozox.com/forums
+APP_NAME="اسم منتداك هنا"
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://yourdomain.com/forums
+
+DB_CONNECTION=mysql
+DB_HOST=localhost
+DB_PORT=3306
+DB_DATABASE=اسم_قاعدة_البيانات_الخاصة_بـ_vBulletin
+DB_USERNAME=يوزر_قاعدة_البيانات
+DB_PASSWORD=باسوورد_قاعدة_البيانات
+
+CACHE_STORE=file
+SESSION_DRIVER=file
 ```
 
-### الخطوة 4: مسح الكاش (ضروري جداً) 🧹
+> **⚠️ مهم:** بيانات قاعدة البيانات تجدها في:
+> - **Databases** → **MySQL Databases** في لوحة Hostinger
+> - أو في ملف `includes/config.php` الخاص بـ vBulletin القديم
 
-شغّل هذه الأوامر عبر SSH (Terminal) من داخل مجلد `forums`:
+6. اضغط **Save** بعد التعديل
+
+---
+
+## الخطوة 6: تثبيت الحزم عبر Composer 📦
+
+### 6.1 — فتح Terminal
+
+1. من لوحة التحكم اذهب إلى: **Advanced** → **SSH Access**
+2. إذا لم يكن SSH مفعّل، اضغط **Enable**
+3. انسخ أمر الاتصال وافتح Terminal على جهازك (PowerShell أو CMD)
+4. الصق أمر SSH واضغط Enter
+5. أدخل كلمة المرور
+
+> **بديل:** يمكنك استخدام **Advanced** → **Terminal** مباشرة من المتصفح (إذا متوفر في خطتك)
+
+### 6.2 — الانتقال لمجلد المشروع
 
 ```bash
 cd public_html/forums
+```
 
-# مسح شامل
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
-php artisan cache:clear
+### 6.3 — تثبيت Composer (إذا غير موجود)
 
-# إعادة بناء
+```bash
+# تحقق أولاً
+composer --version
+
+# إذا غير موجود:
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+php composer-setup.php
+php -r "unlink('composer-setup.php');"
+
+# الآن استخدم php composer.phar بدلاً من composer
+```
+
+### 6.4 — تثبيت الحزم
+
+```bash
+# إذا composer موجود عالسيرفر:
+composer install --optimize-autoloader --no-dev
+
+# إذا استخدمت composer.phar:
+php composer.phar install --optimize-autoloader --no-dev
+```
+
+> **⏳ انتظر** — هذا الأمر قد يأخذ 2-5 دقائق. لا تغلق Terminal.
+
+> **⚠️ إذا ظهر خطأ في الذاكرة:**
+> ```bash
+> php -d memory_limit=512M composer.phar install --optimize-autoloader --no-dev
+> ```
+
+---
+
+## الخطوة 7: إنشاء مفتاح التطبيق 🔑
+
+```bash
+php artisan key:generate
+```
+
+ستظهر رسالة: `Application key set successfully.`
+
+---
+
+## الخطوة 8: إعداد مجلدات التخزين 📁
+
+```bash
+# إنشاء المجلدات المطلوبة
+mkdir -p storage/framework/{cache/data,sessions,views}
+mkdir -p storage/logs
+mkdir -p bootstrap/cache
+
+# إعطاء صلاحيات الكتابة
+chmod -R 775 storage
+chmod -R 775 bootstrap/cache
+
+# ربط مجلد التخزين
+php artisan storage:link
+```
+
+---
+
+## الخطوة 9: تشغيل Migration (لجدول API فقط) 🗄️
+
+```bash
+php artisan migrate
+```
+
+> **ملاحظة مهمة:** هذا الأمر سينشئ فقط جدول `personal_access_tokens` الخاص بـ Sanctum API.
+> **لن يمس أي جدول من جداول vBulletin.**
+
+إذا طلب تأكيد، اكتب `yes`.
+
+---
+
+## الخطوة 10: تحسين الأداء للإنتاج ⚡
+
+```bash
 php artisan config:cache
 php artisan route:cache
 php artisan view:cache
 ```
 
-> **ملاحظة:** إذا واجهت مشكلة في التيرمنال، يمكنك مسح الكاش بمسح محتويات مجلد `storage/framework/cache` و `views` يدوياً من File Manager.
-
 ---
 
-## التحقق من الإصلاحات ✅
+## الخطوة 11: ضبط التوجيه (مهم جداً!) 🔀
 
-1. **الرابط الرئيسي:** ادخل `https://orsozox.com/forums/` ← يجب أن يعمل الآن بدون 404.
-2. **الروابط:** اضغط على أي قسم أو موضوع ← يجب أن يكون الرابط `orsozox.com/forums/thread/...` (بدون كلمة `public`).
-3. **العناوين:** لاحظ العناوين التي كانت تحتوي على `<font>` أو `<b>` ← يجب أن تظهر الآن نصوص نظيفة فقط.
+بما أن المشروع في `public_html/forums/`، المتصفح يجب يوصل لمجلد `public/` داخل المشروع.
 
-### 6. إعدادات السيرفر (Shared Hosting) - هام جداً 🚨
+### الحل: تعديل ملف `.htaccess` في مجلد `forums/`
 
-لحل مشكلة **404 Not Found**، يجب تحديث ملفين `.htaccess`:
-
-#### الملف الأول: في المجلد الرئيسي للمنتدى (`forums/.htaccess`)
-يجب أن يحتوي على الكود التالي ليعيد التوجيه إلى مجلد `public` بشكل صحيح:
+1. من **File Manager**، افتح `public_html/forums/`
+2. افتح ملف `.htaccess` (ملف الجذر، ليس الذي داخل public/)
+3. تأكد أن محتواه:
 
 ```apache
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /forums/
 
-    # Redirect /forums/public/foo to /forums/foo
-    RewriteCond %{THE_REQUEST} /forums/public/([^\s?]*) [NC]
-    RewriteRule ^ %1 [L,NE,R=301]
-
-    # Handle the root request to go to public/
-    RewriteRule ^$ public/ [L]
-
-    # Handle all other non-public requests to go to public/
-    RewriteRule ^((?!public/).*)$ public/$1 [L,NC]
+    # Redirect everything to public folder
+    RewriteCond %{REQUEST_URI} !^/forums/public/
+    RewriteRule ^(.*)$ public/$1 [L]
 </IfModule>
 ```
 
-#### الملف الثاني: داخل مجلد `public` (`forums/public/.htaccess`)
-هذا الملف موجود بالفعل، ولكن يفضل تحديثه بالمحتوى التالي لضمان حذف `index.php` من الرابط:
-
-```apache
-<IfModule mod_rewrite.c>
-    <IfModule mod_negotiation.c>
-        Options -MultiViews -Indexes
-    </IfModule>
-
-    RewriteEngine On
-    RewriteBase /forums/public/
-
-    # Handle Authorization Header
-    RewriteCond %{HTTP:Authorization} .
-    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
-
-    # Redirect Trailing Slashes If Not A Folder...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_URI} (.+)/$
-    RewriteRule ^ %1 [L,R=301]
-
-    # Remove index.php from URL
-    RewriteCond %{THE_REQUEST} /index\.php [NC]
-    RewriteRule ^(.*?)index\.php$ /$1 [L,R=301,NC,NE]
-
-    # Handle Front Controller...
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^ index.php [L]
-</IfModule>
-```
-
-> **ملاحظة:** عدم إضافة `RewriteBase /forums/public/` في الملف الثاني هو السبب الرئيسي لخطأ 404.
-
-### 7. الخاتمة
+> هذا يجعل كل زيارة لـ `yourdomain.com/forums/...` تذهب تلقائياً لمجلد `public/`.
 
 ---
 
-## 🆕 تحديثات فبراير 2026 — ميزات جديدة
+## الخطوة 12: تعديل robots.txt 🤖
 
-### 8. نشر YouTube Lite Embed ▶️
+1. من **File Manager**، افتح `public_html/forums/public/robots.txt`
+2. غيّر السطر الأخير:
 
-**ارفع الملفات التالية:**
 ```
-app/Services/YouTubeLiteEmbedService.php
-public/css/yt-lite.css
-public/js/yt-lite.js
-resources/views/thread/show.blade.php     (تأكد أن yt-lite.js خارج @auth)
-app/Models/Post.php                        (يحتوي على Content Pipeline)
-```
-
-**امسح الكاش:**
-```bash
-php artisan config:clear && php artisan view:clear
+Sitemap: https://yourdomain.com/forums/sitemap.xml
 ```
 
 ---
 
-### 9. نشر LIIMS — إدارة الصور القديمة 🖼️
+## الخطوة 13: اختبار التثبيت ✅
 
-#### الخطوة 1: إنشاء الجداول الجديدة
-شغّل هذين الأمرين في **phpMyAdmin**:
+### 13.1 — اختبار الصفحة الرئيسية
+افتح في المتصفح:
+```
+https://yourdomain.com/forums/
+```
+يجب أن تظهر الصفحة الرئيسية بالتصميم الداكن.
 
-```sql
--- جدول الإعدادات
-CREATE TABLE IF NOT EXISTS site_settings (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    `key` VARCHAR(255) UNIQUE NOT NULL,
-    value TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+### 13.2 — اختبار لوحة التحكم
+```
+https://yourdomain.com/forums/admin
+```
+سجّل الدخول بحساب vBulletin الذي مجموعته (usergroupid) = 5 أو 6 أو 7.
 
--- إعدادات افتراضية
-INSERT IGNORE INTO site_settings (`key`, value) VALUES ('image_proxy_enabled', '0');
-INSERT IGNORE INTO site_settings (`key`, value) VALUES ('image_auto_cleanup', '0');
-
--- جدول كاش الصور
-CREATE TABLE IF NOT EXISTS image_cache (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    url_hash VARCHAR(64) UNIQUE NOT NULL,
-    original_url TEXT NOT NULL,
-    status ENUM('pending','valid','broken') DEFAULT 'pending',
-    response_code INT NULL,
-    content_type VARCHAR(100) NULL,
-    content_length INT NULL,
-    last_checked_at TIMESTAMP NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_status (status),
-    INDEX idx_last_checked (last_checked_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+### 13.3 — اختبار Sitemap
+```
+https://yourdomain.com/forums/sitemap.xml
 ```
 
-#### الخطوة 2: رفع الملفات
+### 13.4 — اختبار API
 ```
-app/Models/ImageCache.php
-app/Services/ImageProxyService.php
-app/Services/ImageValidationService.php
-app/Services/SettingsService.php
-app/Http/Controllers/ImageProxyController.php
-app/Jobs/ScanImagesJob.php
-app/Console/Commands/ScanImagesCommand.php
-app/Filament/Pages/ManageImages.php
-resources/views/filament/pages/manage-images.blade.php
-public/css/image-proxy.css
-public/images/image-unavailable.png
-routes/web.php                              (يحتوي على route جديد)
-resources/views/thread/show.blade.php       (يحتوي على CSS link)
+https://yourdomain.com/forums/api/threads
 ```
+(يجب أن يطلب توكن — هذا طبيعي)
 
-#### الخطوة 3: تفعيل النظام
-1. امسح الكاش: `https://orsozox.com/forums/clear-cache.php`
-2. ادخل لوحة التحكم: `/admin/manage-images`
-3. فعّل Image Proxy
+---
 
-#### الخطوة 4: فحص الصور (اختياري)
+## حل المشاكل الشائعة 🔧
+
+### مشكلة: صفحة بيضاء (500 Error)
+
 ```bash
 cd public_html/forums
-php artisan images:scan --limit=500 --queue
-php artisan queue:work --stop-when-empty
+
+# شغّل وضع التطوير مؤقتاً لرؤية الخطأ:
+# عدّل .env واجعل APP_DEBUG=true ثم:
+php artisan config:clear
+php artisan cache:clear
+
+# بعد حل المشكلة أرجعها:
+# APP_DEBUG=false
+php artisan config:cache
+```
+
+### مشكلة: 404 Not Found على كل الصفحات
+- تأكد أن `mod_rewrite` مفعّل
+- تأكد من ملف `.htaccess` في `forums/` و `forums/public/`
+
+### مشكلة: خطأ في الاتصال بقاعدة البيانات
+1. تحقق من بيانات `.env`
+2. تأكد أن `DB_HOST=localhost`
+3. تأكد أن اليوزر لديه صلاحيات على قاعدة البيانات
+
+### مشكلة: خطأ Permission denied
+```bash
+chmod -R 775 storage
+chmod -R 775 bootstrap/cache
+```
+
+### مشكلة: Composer out of memory
+```bash
+php -d memory_limit=-1 composer.phar install --optimize-autoloader --no-dev
+```
+
+### مشكلة: Class not found
+```bash
+composer dump-autoload --optimize
 ```
 
 ---
 
-### 10. نشر صفحات الأخطاء المخصصة 🚨
+## تحديث المنتدى مستقبلاً 🔄
 
-**ارفع الملفات التالية:**
-```
-resources/views/errors/404.blade.php
-resources/views/errors/403.blade.php
-resources/views/errors/419.blade.php
-resources/views/errors/500.blade.php
-resources/views/errors/503.blade.php
-public/css/error-pages.css
-public/js/error-pages.js
-```
+إذا عدّلت الكود وأردت رفعه مرة ثانية:
 
-**للتجربة:** ادخل أي رابط غير موجود:
-```
-https://orsozox.com/forums/this-page-does-not-exist
-```
+```bash
+cd public_html/forums
 
-**تعمل تلقائياً** — لا تحتاج إعدادات إضافية.
+# مسح الكاش القديم
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+
+# إعادة بناء الكاش
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+```
 
 ---
 
-> **تم تحديث الدليل — فبراير 2026**
+## API — مرجع سريع 📡
+
+| Method | URL | الوصف | Auth |
+|--------|-----|-------|------|
+| `POST` | `/forums/api/login` | تسجيل الدخول | ❌ |
+| `POST` | `/forums/api/logout` | تسجيل الخروج | ✅ Bearer |
+| `GET` | `/forums/api/threads` | قائمة المواضيع | ✅ Bearer |
+| `GET` | `/forums/api/threads/{id}` | تفاصيل موضوع | ✅ Bearer |
+| `GET` | `/forums/api/posts/{threadId}` | ردود موضوع | ✅ Bearer |
+
+### مثال تسجيل الدخول:
+```bash
+curl -X POST https://yourdomain.com/forums/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"123456"}'
+
+# الرد:
+# {"token":"1|abc123...","user":{...}}
+```
+
+### مثال جلب المواضيع:
+```bash
+curl https://yourdomain.com/forums/api/threads \
+  -H "Authorization: Bearer 1|abc123..."
+```

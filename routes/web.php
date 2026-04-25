@@ -14,50 +14,30 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\Api\ThreadValidationController;
 use App\Http\Controllers\ImageProxyController;
+use App\Http\Controllers\UnsubscribeController;
+use App\Http\Controllers\NewsletterController;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 
-// LIIMS: Image Proxy (public, no auth required)
 Route::get('/image-proxy/{hash}', [ImageProxyController::class, 'show'])
     ->where('hash', '[a-f0-9]{64}')
     ->name('image.proxy');
 
+// Email Unsubscribe Route
+Route::get('/unsubscribe/{hash}', [UnsubscribeController::class, 'unsubscribe'])
+    ->where('hash', '[a-f0-9]{32}') // MD5 Hash length
+    ->name('email.unsubscribe');
+
+// Newsletter Subscribe (footer form → saves to email_subscribers table)
+Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])
+    ->name('newsletter.subscribe')
+    ->middleware(\Illuminate\Routing\Middleware\ThrottleRequests::class . ':5,1');
+
 Route::get('/clear-home-cache', function () {
     \Illuminate\Support\Facades\Cache::flush();
     return 'Cache cleared successfully. Please check the homepage now.';
-});
-
-Route::get('/run-local-ai-migration', function () {
-    if (!Schema::hasTable('thread_keywords')) {
-        Schema::create('thread_keywords', function (Blueprint $table) {
-            $table->id();
-            $table->unsignedInteger('threadid');
-            $table->string('keyword', 100);
-            $table->timestamps();
-
-            $table->foreign('threadid')->references('threadid')->on('thread')->onDelete('cascade');
-            $table->index('keyword');
-        });
-        return 'Table thread_keywords created successfully.';
-    }
-    return 'Table already exists.';
-});
-
-Route::get('/debug-admin', function () {
-    $routes = collect(Route::getRoutes())->filter(function ($route) {
-        return str_contains($route->uri(), 'admin');
-    })->map(function ($route) {
-        return $route->uri() . ' (' . implode(', ', $route->methods()) . ')';
-    })->values();
-
-    return response()->json([
-        'admin_routes' => $routes,
-        'app_url' => config('app.url'),
-        'filament_path' => filament()->getCurrentPanel()?->getPath(),
-        'filament_id' => filament()->getCurrentPanel()?->getId()
-    ]);
-});
+})->middleware('auth');
 /*
 |--------------------------------------------------------------------------
 | المسارات الأمامية — Web Routes
@@ -113,6 +93,8 @@ Route::middleware('auth')->group(function () {
     Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadEditController::class, 'update'])->name('thread.ajax.edit');
     // تعديل الردود باستخدام CKEditor
     Route::post('/post/{id}/ajax/edit', [\App\Http\Controllers\Api\PostEditController::class, 'update'])->name('post.ajax.edit');
+    // جلب الكود الأصلي (BBCode) من قاعدة البيانات
+    Route::get('/post/{id}/ajax/raw', [\App\Http\Controllers\Api\PostEditController::class, 'getRaw'])->name('post.ajax.raw');
     // رفع الصور من داخل المحرر (ملف + رابط)
     Route::post('/editor/upload', [\App\Http\Controllers\ImageUploadController::class, 'upload'])->name('editor.upload');
     Route::post('/editor/upload-url', [\App\Http\Controllers\ImageUploadController::class, 'uploadByUrl'])->name('editor.upload.url');

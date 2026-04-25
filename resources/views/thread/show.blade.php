@@ -246,6 +246,23 @@
             </div>
         @endforeach
 
+        {{-- /////////// In-Article Ad Slot (After First Post) /////////// --}}
+        @php
+            $currentForumId = $thread->forumid ?? null;
+            $showAds = $themeSettings->shouldShowAds($currentForumId);
+            $inArticleAdCode = $themeSettings->get('ads.feed_code', '');
+        @endphp
+
+        @if($showAds && !empty(trim($inArticleAdCode)) && $posts->currentPage() == 1)
+            <div class="ad-slot ad-in-article text-center my-4 p-3 rounded-4 glass-panel border border-light-subtle">
+                <div class="ad-label small text-muted mb-2"><i class="fas fa-ad text-muted-custom me-1"></i> إعلان مدعوم</div>
+                <div class="ad-content w-100 overflow-hidden d-flex justify-content-center">
+                    {!! $inArticleAdCode !!}
+                </div>
+            </div>
+        @endif
+        {{-- /////////////////////////////////////////////////////////////// --}}
+
         {{-- Pagination --}}
         <div class="d-flex justify-content-center mt-4">
             {{ $posts->links() }}

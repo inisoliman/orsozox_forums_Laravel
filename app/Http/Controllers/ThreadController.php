@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Thread;
 use App\Models\ForumPermission;
+use Illuminate\Support\Facades\Cache;
 
 class ThreadController extends Controller
 {
@@ -44,8 +45,10 @@ class ThreadController extends Controller
             return redirect($redirectUrl, 301);
         }
 
-        // زيادة عدد المشاهدات
-        Thread::where('threadid', $id)->increment('views');
+        // زيادة عدد المشاهدات — مُجمَّعة في الكاش (بدلاً من كتابة DB مباشرة)
+        $cacheKey = "views_thread_{$id}";
+        $current = (int) Cache::get($cacheKey, 0);
+        Cache::put($cacheKey, $current + 1, 600); // 10 دقائق
 
         // الردود مع ترقيم
         $posts = $thread->posts()

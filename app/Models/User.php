@@ -106,7 +106,7 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function getIsAdminAttribute(): bool
     {
-        return in_array($this->usergroupid, [5, 6, 7]);
+        return in_array($this->usergroupid, config('forum.admin_usergroup_ids', [5, 6, 7]));
     }
 
     /**
@@ -130,7 +130,7 @@ class User extends Authenticatable implements FilamentUser, HasName
      */
     public function getIsModeratorAttribute(): bool
     {
-        return in_array($this->usergroupid, [5, 6, 7]);
+        return in_array($this->usergroupid, config('forum.admin_usergroup_ids', [5, 6, 7]));
     }
 
     /**

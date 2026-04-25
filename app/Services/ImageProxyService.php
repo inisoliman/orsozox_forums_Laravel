@@ -53,41 +53,81 @@ class ImageProxyService
 
     /**
      * Process <img> tags in the content.
+     * 
+     * Two passes:
+     * 1) Linked images: <a href="..."><img src="..."></a>
+     *    → If broken: convert to styled clickable button
+     *    → If valid: proxy the image, keep the link
+     * 2) Standalone images: <img src="...">
+     *    → Normal proxy/placeholder logic
      */
     private function processImages(string $html): string
     {
-        return preg_replace_callback(
+        if (empty($html)) {
+            return $html;
+        }
+        // --- PASS 1: Handle images inside links (<a><img></a>) ---
+        $result = preg_replace_callback(
+            '#<a\s[^>]*href=["\']([^"\']+)["\'][^>]*>\s*<img\s[^>]*src=["\']([^"\']+)["\'][^>]*>\s*</a>#si',
+            function ($matches) {
+                $linkUrl = $matches[1];
+                $imgSrc = $matches[2];
+
+                // Skip non-external images
+                if ($this->shouldSkip($imgSrc)) {
+                    return $matches[0];
+                }
+
+                // Check image status
+                $hash = ImageCache::hashUrl($imgSrc);
+                $cached = ImageCache::where('url_hash', $hash)->first();
+
+                if (!$cached) {
+                    ImageCache::create([
+                        'url_hash' => $hash,
+                        'original_url' => $imgSrc,
+                        'status' => 'pending',
+                    ]);
+                }
+
+                // If confirmed broken → convert to styled button with the link
+                if ($cached && $cached->status === 'broken' && $cached->isFresh()) {
+                    $safeUrl = e($linkUrl);
+                    return '<div class="broken-image-wrapper">'
+                        . '<a href="' . $safeUrl . '" target="_blank" rel="noopener noreferrer" class="broken-image-button">'
+                        . 'اضغط هنا لفتح الرابط'
+                        . '</a></div>';
+                }
+
+                // Valid or pending → proxy the image inside the link
+                $proxyUrl = url('/image-proxy/' . $hash);
+                $safeLink = e($linkUrl);
+                return '<a href="' . $safeLink . '" target="_blank" rel="noopener noreferrer">'
+                    . '<img src="' . e($proxyUrl) . '" data-original-src="' . e($imgSrc) . '" loading="lazy" alt="صورة" class="img-fluid bb-img">'
+                    . '</a>';
+            },
+            $html
+        );
+        // Protect against null return from preg_replace_callback (PCRE backtracking limit)
+        $html = $result ?? $html;
+
+        // --- PASS 2: Handle standalone images (not inside links) ---
+        $result = preg_replace_callback(
             '/<img\s[^>]*src=["\']([^"\']+)["\'][^>]*>/si',
             function ($matches) {
                 $fullTag = $matches[0];
                 $src = $matches[1];
 
-                // Skip: data URIs
-                if (str_starts_with($src, 'data:')) {
+                // Skip non-external or already-proxied images
+                if ($this->shouldSkip($src)) {
                     return $fullTag;
                 }
 
-                // Skip: already proxied
-                if (str_contains($src, '/image-proxy/')) {
-                    return $fullTag;
-                }
-
-                // Skip: local images
-                if ($this->isLocalUrl($src)) {
-                    return $fullTag;
-                }
-
-                // Skip: relative paths (local assets)
-                if (!preg_match('#^https?://#i', $src)) {
-                    return $fullTag;
-                }
-
-                // Create hash and ensure record exists in image_cache
+                // Create hash and ensure record exists
                 $hash = ImageCache::hashUrl($src);
                 $cached = ImageCache::where('url_hash', $hash)->first();
 
                 if (!$cached) {
-                    // Create a pending record so the controller can look up the original URL
                     ImageCache::create([
                         'url_hash' => $hash,
                         'original_url' => $src,
@@ -95,19 +135,38 @@ class ImageProxyService
                     ]);
                 }
 
-                // If confirmed broken and fresh → show placeholder
+                // If confirmed broken → show placeholder
                 if ($cached && $cached->status === 'broken' && $cached->isFresh()) {
-                    $placeholder = asset('images/image-unavailable.png');
+                    $placeholder = asset('images/image-unavailable.png?v=' . filemtime(public_path('images/image-unavailable.png')));
                     return '<img src="' . e($placeholder) . '" alt="صورة غير متاحة" loading="lazy" class="missing-image">';
                 }
 
                 // Transform to proxy URL
                 $proxyUrl = url('/image-proxy/' . $hash);
-
                 return '<img src="' . e($proxyUrl) . '" data-original-src="' . e($src) . '" loading="lazy" alt="صورة" class="img-fluid bb-img">';
             },
             $html
         );
+        // Protect against null return from preg_replace_callback (PCRE backtracking limit)
+        $html = $result ?? $html;
+
+        return $html;
+    }
+
+    /**
+     * Check if an image URL should be skipped (local, data URI, already proxied).
+     */
+    private function shouldSkip(string $src): bool
+    {
+        if (str_starts_with($src, 'data:'))
+            return true;
+        if (str_contains($src, '/image-proxy/'))
+            return true;
+        if ($this->isLocalUrl($src))
+            return true;
+        if (!preg_match('#^https?://#i', $src))
+            return true;
+        return false;
     }
 
     /**

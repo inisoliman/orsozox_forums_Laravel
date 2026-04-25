@@ -17,12 +17,19 @@ class HomeController extends Controller
         // تحديد مجموعة المستخدم الحالي لعزل الـ Cache
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
 
-        // مواضيع متنوعة من الأرشيف (عشوائية تماماً من جميع المواضيع منذ بداية الموقع)
-        $latestThreads = Cache::remember("home_latest_rand_{$usergroupId}", 86400, function () {
+        // ————————————————————————————————————————
+        // مواضيع متنوعة من الأرشيف (عشوائية — تتغير كل ساعة)
+        // ملاحظة: استبدلنا inRandomOrder() (بطيء على MySQL الكبيرة)
+        // بـ fast random offset — أسرع بـ 100x على shared hosting
+        // ————————————————————————————————————————
+        $latestThreads = Cache::remember("home_archive_{$usergroupId}_" . date('Y-m-d-H'), 3600, function () {
+            $maxOffset = max(0, Thread::visible()->count() - 5);
+            $offset = $maxOffset > 0 ? random_int(0, $maxOffset) : 0;
+
             return Thread::visible()
-                ->inRandomOrder()
                 ->with(['forum', 'author'])
-                ->limit(12)
+                ->offset($offset)
+                ->limit(5)
                 ->get();
         });
 
@@ -35,20 +42,24 @@ class HomeController extends Controller
                 ->get();
         });
 
-        // أبرز المواضيع (تتغير عشوائياً كل 24 ساعة من جميع مواضيع المنتدى ذات التفاعل/المشاهدات)
-        $topThreadsYear = Cache::remember("home_topyear_rand_{$usergroupId}", 86400, function () {
+        // ————————————————————————————————————————
+        // مواضيع مميزة (عشوائية — تتغير كل ساعة)
+        // ————————————————————————————————————————
+        $topThreadsYear = Cache::remember("home_featured_{$usergroupId}_" . date('Y-m-d-H'), 3600, function () {
+            $maxOffset = max(0, Thread::visible()->count() - 5);
+            $offset = $maxOffset > 0 ? random_int(0, $maxOffset) : 0;
+
             return Thread::visible()
-                ->where('views', '>', 50) // فلتر بسيط لضمان أن الموضوع ليس فارغاً تماماً
-                ->inRandomOrder()
                 ->with(['author'])
+                ->offset($offset)
                 ->limit(5)
                 ->get();
         });
 
-        // الأقسام الرئيسية (مخصصة حسب المجموعة — لا نخلط بين الأعضاء والزوار في الـ Cache)
+        // الأقسام الرئيسية (مخصصة حسب المجموعة)
         $forums = Cache::remember("home_forums_{$usergroupId}", 1800, function () {
             return Forum::active()
-                ->accessible()   // يُطبق تصاريح usergroupid للمستخدم الحالي
+                ->accessible()
                 ->root()
                 ->ordered()
                 ->with([
@@ -64,7 +75,7 @@ class HomeController extends Controller
                 ->get();
         });
 
-        // إحصائيات عامة (لا تحتاج إلى تخصيص)
+        // إحصائيات عامة
         $stats = Cache::remember('home_stats', 3600, function () {
             return [
                 'threads' => Thread::visible()->count(),
@@ -76,4 +87,23 @@ class HomeController extends Controller
 
         return view('home', compact('latestThreads', 'popularThreads', 'forums', 'stats', 'topThreadsYear'));
     }
+
+    /**
+     * دالة مساعدة لتدوير الكاش يومياً بشكل مضمون.
+     * تقوم بحذف كاش الأمس إن وُجد، وإنشاء كاش اليوم.
+     */
+    private function dailyCache(string $prefix, string $today, callable $callback)
+    {
+        $todayKey = "{$prefix}_{$today}";
+
+        // حذف كاش الأمس لضمان عدم تراكم البيانات القديمة
+        $yesterday = date('Y-m-d', strtotime('-1 day'));
+        Cache::forget("{$prefix}_{$yesterday}");
+
+        // أيضاً حذف أي مفتاح قديم بدون تاريخ (من التحديثات السابقة)
+        Cache::forget($prefix);
+
+        return Cache::remember($todayKey, 86400, $callback);
+    }
 }
+

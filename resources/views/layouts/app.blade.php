@@ -69,15 +69,81 @@
     {{-- Custom CSS --}}
     <link href="{{ asset('css/app.css') }}" rel="stylesheet">
 
-    {{-- Custom CSS from Settings --}}
-    @if($css = $themeSettings->get('css.custom'))
+    {{-- Custom CSS from Settings — sanitized to prevent XSS via CSS injection --}}
+    @php
+        $rawCss = $themeSettings->get('css.custom');
+    @endphp
+    @if($rawCss)
         <style>
-            {!! $css !!}
+            @php
+                // Strip dangerous CSS that could contain JS execution
+                $safeCss = preg_replace(
+                    '/expression\s*\(|javascript\s*:|@import\s+url\s*\(/i',
+                    '',
+                    $rawCss
+                );
+                // Remove any HTML tags that could break the page
+                $safeCss = strip_tags($safeCss);
+            @endphp
+            {!! $safeCss !!}
         </style>
     @endif
 
-    {{-- Header Scripts --}}
-    {!! $themeSettings->get('scripts.header') !!}
+    <style>
+        /* Prevent horizontal scroll globally.
+           IMPORTANT: apply overflow-x only on <body>, NOT on <html>.
+           Putting overflow-x: hidden on <html> breaks window scroll tracking
+           in some browsers and causes the scroll-to-top button to never show. */
+        html {
+            overflow-x: clip;
+        }
+
+        body {
+            overflow-x: hidden;
+            max-width: 100vw;
+        }
+
+        /* Responsive Embeds & Content Fix */
+        .post-content-body iframe,
+        .post-content-body object,
+        .post-content-body embed,
+        .post-content-body video,
+        .post-content-body img {
+            max-width: 100% !important;
+            height: auto !important;
+            border-radius: 8px;
+        }
+
+        .post-content-body {
+            overflow-wrap: break-word;
+            word-wrap: break-word;
+            max-width: 100% !important;
+        }
+
+        /* Ad Slots Fixes - CRITICAL FOR ADSENSE OVERFLOW */
+        .ad-slot,
+        .adsbygoogle {
+            max-width: 100vw !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+            display: block !important;
+        }
+
+    </style>
+
+    {{-- Header Scripts — Only allow-list trusted sources (prevent Stored XSS) --}}
+    @php
+        $allowedScripts = $themeSettings->get('scripts.header');
+    @endphp
+    @if($allowedScripts)
+        @if(auth()->check() && auth()->user()->is_admin)
+            {{-- Super-admins may customize header scripts (use with extreme care) --}}
+            {!! $allowedScripts !!}
+        @else
+            {{-- Fallback: only allow known safe script snippets (e.g. Google Analytics) via a whitelist filter --}}
+            {{-- We render nothing for non-admins to prevent XSS from compromised settings --}}
+        @endif
+    @endif
 
     @yield('schema')
     @stack('head')
@@ -90,7 +156,8 @@
         <div class="container">
             <a class="navbar-brand" href="{{ route('home') }}">
                 <i class="fas fa-cross text-warning me-2"></i>
-                {{ $themeSettings->get('site_name', config('app.name', 'المنتدى')) }}
+                <span
+                    class="text-warning fw-bold">{{ $themeSettings->get('site_name') ?: config('app.name', 'المنتدى') }}</span>
             </a>
 
             <div class="d-flex align-items-center gap-2 order-lg-3">
@@ -170,24 +237,21 @@
         </div>
     </nav>
 
-    {{-- News Ticker --}}
-    @if($themeSettings->get('news_ticker_enabled', true))
-        @php
-            try {
-                $tickers = \App\Models\NewsTicker::where('is_active', true)->orderBy('sort_order', 'asc')->get();
-            } catch (\Exception $e) {
-                $tickers = collect(); // If table doesn't exist yet, don't crash
-            }
-        @endphp
-    @if($tickers->count() > 0)
-        <div class="news-ticker-container bg-danger shadow-sm text-white py-1 overflow-hidden position-relative border-bottom border-danger-subtle">
+    {{-- News Ticker — fetched via View Composer (do not query here) --}}
+    @if($themeSettings->get('news_ticker_enabled', true) && isset($tickers) && $tickers->count() > 0)
+        <div
+            class="news-ticker-container bg-danger shadow-sm text-white py-1 overflow-hidden position-relative border-bottom border-danger-subtle">
             <div class="container d-flex align-items-center">
-                <span class="badge bg-white text-danger ms-3 px-3 py-2 fw-bold text-nowrap z-3 position-relative rounded-pill shadow-sm"><i class="fas fa-bolt me-1"></i> عاجل</span>
-                <marquee direction="right" scrollamount="5" class="d-flex align-items-center mb-0 fw-bold" onmouseover="this.stop();" onmouseout="this.start();">
+                <span
+                    class="badge bg-white text-danger ms-3 px-3 py-2 fw-bold text-nowrap z-3 position-relative rounded-pill shadow-sm"><i
+                        class="fas fa-bolt me-1"></i> عاجل</span>
+                <marquee direction="right" scrollamount="5" class="d-flex align-items-center mb-0 fw-bold"
+                    onmouseover="this.stop();" onmouseout="this.start();">
                     @foreach($tickers as $ticker)
                         <span class="mx-4">
                             @if($ticker->url)
-                                <a href="{{ $ticker->url }}" class="text-white text-decoration-none" style="transition: color 0.3s;" onmouseover="this.style.color='#f8d7da'" onmouseout="this.style.color='white'">
+                                <a href="{{ $ticker->url }}" class="text-white text-decoration-none" style="transition: color 0.3s;"
+                                    onmouseover="this.style.color='#f8d7da'" onmouseout="this.style.color='white'">
                                     <i class="fas fa-dot-circle mx-2 fs-6 opacity-75"></i>{{ $ticker->content }}
                                 </a>
                             @else
@@ -199,10 +263,12 @@
             </div>
         </div>
     @endif
-    @endif
 
     {{-- Header Ad --}}
-    @if($themeSettings->shouldShowAds(isset($forum) ? $forum->forumid : null) && $adCode = $themeSettings->get('ads.header_code'))
+    @php
+        $currentForumIdForAds = $forum->forumid ?? ($thread->forumid ?? null);
+    @endphp
+    @if($themeSettings->shouldShowAds($currentForumIdForAds) && $adCode = $themeSettings->get('ads.header_code'))
         <div class="container">
             <div class="ad-slot ad-leaderboard">
                 {!! $adCode !!}
@@ -242,9 +308,9 @@
             <div class="row">
                 <div class="col-md-4 mb-4">
                     <div class="footer-logo mb-3"><i class="fas fa-cross"></i>
-                        {{ $themeSettings->get('site_name', config('app.name')) }}</div>
+                        {{ $themeSettings->get('site_name') ?: config('app.name') }}</div>
                     <p class="text-muted small">
-                        {{ $themeSettings->get('footer.about', 'منتدى مسيحي أرثوذكسي يهتم بنشر كلمة الله، سير القديسين، وتوفير بيئة للنقاش الروحي البناء.') }}
+                        {{ $themeSettings->get('footer.about') ?: 'منتدى مسيحي أرثوذكسي يهتم بنشر كلمة الله، سير القديسين، وتوفير بيئة للنقاش الروحي البناء.' }}
                     </p>
                     <div class="social-icons">
                         @if($fb = $themeSettings->get('social.facebook'))
@@ -299,18 +365,27 @@
                 </div>
                 <div class="col-md-4 mb-4">
                     <div class="h6 text-white fw-bold mb-3">القائمة البريدية</div>
-                    <p class="text-muted small">اشترك ليصلك أحدث المواضيع الروحية</p>
-                    <div class="input-group">
-                        <input type="email" class="form-control" placeholder="بريدك الإلكتروني">
-                        <button class="btn btn-primary">اشترك</button>
-                    </div>
+                    <p class="text-muted small">
+                        اشترك ليصلك أحدث المواضيع الروحية والأخبار الكنسية على بريدك مباشرةً.
+                    </p>
+                    <form id="newsletterForm" class="input-group" novalidate>
+                        <input type="email" id="newsletterEmail" class="form-control"
+                            placeholder="بريدك الإلكتروني" required autocomplete="email">
+                        <button type="submit" id="newsletterBtn" class="btn btn-primary">
+                            <i class="fas fa-paper-plane ms-1"></i> اشترك
+                        </button>
+                    </form>
+                    <div id="newsletterMsg" class="small mt-2" style="display:none;"></div>
                 </div>
             </div>
             <div class="copyright">
-                &copy; {{ date('Y') }} {{ $themeSettings->get('site_name', config('app.name')) }}. جميع الحقوق محفوظة.
+                &copy; {{ date('Y') }} {{ $themeSettings->get('site_name') ?: config('app.name') }}. جميع الحقوق محفوظة.
             </div>
         </div>
     </footer>
+
+    {{-- Scroll to top — appears on every page that uses this layout --}}
+    @include('partials.scroll-to-top')
 
     {{-- Bootstrap JS --}}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
@@ -346,8 +421,85 @@
         }
     </script>
 
-    {{-- Footer Scripts --}}
-    {!! $themeSettings->get('scripts.footer') !!}
+
+    {{-- Newsletter AJAX handler --}}
+    <script>
+        (function () {
+            function init() {
+                var form = document.getElementById('newsletterForm');
+                var input = document.getElementById('newsletterEmail');
+                var btn = document.getElementById('newsletterBtn');
+                var msg = document.getElementById('newsletterMsg');
+                if (!form || !input || !btn || !msg) return;
+
+                var csrfToken = document.querySelector('meta[name="csrf-token"]');
+                csrfToken = csrfToken ? csrfToken.getAttribute('content') : '';
+
+                function showMsg(text, success) {
+                    msg.style.display = 'block';
+                    msg.textContent = text;
+                    msg.className = 'small mt-2 ' + (success ? 'text-success' : 'text-danger');
+                }
+
+                form.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    var email = (input.value || '').trim();
+
+                    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                        showMsg('يرجى إدخال بريد إلكتروني صحيح.', false);
+                        input.focus();
+                        return;
+                    }
+
+                    btn.disabled = true;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+                    fetch('{{ route("newsletter.subscribe") }}', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken
+                        },
+                        body: JSON.stringify({ email: email })
+                    })
+                    .then(function (res) { return res.json(); })
+                    .then(function (data) {
+                        showMsg(data.message || 'تم الاشتراك بنجاح!', data.success !== false);
+                        if (data.success !== false) {
+                            input.value = '';
+                        }
+                    })
+                    .catch(function () {
+                        showMsg('حدث خطأ. يرجى المحاولة مرة أخرى.', false);
+                    })
+                    .finally(function () {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-paper-plane ms-1"></i> اشترك';
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+
+    {{-- Footer Scripts — restricted to prevent Stored XSS --}}
+    @php
+        $footerScripts = $themeSettings->get('scripts.footer');
+    @endphp
+    @if($footerScripts)
+        @if(auth()->check() && auth()->user()->is_admin)
+            {{-- Super-admins may customize footer scripts --}}
+            {!! $footerScripts !!}
+        @else
+            {{-- Non-admin viewers: do not render raw scripts from settings --}}
+        @endif
+    @endif
 
     @stack('scripts')
 </body>

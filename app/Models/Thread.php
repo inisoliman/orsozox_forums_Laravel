@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Facades\Cache;
+use App\Traits\HasSlug;
 
 class Thread extends Model
 {
@@ -166,15 +167,5 @@ class Thread extends Model
         return mb_substr(trim($text), 0, 200, 'UTF-8') . '...';
     }
 
-    protected function createSlug(?string $text): string
-    {
-        if (empty($text))
-            return 'thread';
-        $text = trim($text);
-        $text = preg_replace('/\s+/u', '-', $text);
-        $text = preg_replace('/[^\p{L}\p{N}\-]/u', '', $text);
-        $text = preg_replace('/-+/', '-', $text);
-        $text = trim($text, '-');
-        return $text ?: 'thread';
-    }
+    use HasSlug;
 }

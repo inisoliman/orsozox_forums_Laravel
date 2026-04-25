@@ -56,6 +56,16 @@ class AppServiceProvider extends ServiceProvider
                     ->get();
             });
             $view->with('navForums', $forums);
+
+            // Share active news tickers for the ticker bar (moved from view query)
+            try {
+                $tickers = \App\Models\NewsTicker::where('is_active', true)
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+            } catch (\Exception $e) {
+                $tickers = collect();
+            }
+            $view->with('tickers', $tickers);
         });
     }
 }

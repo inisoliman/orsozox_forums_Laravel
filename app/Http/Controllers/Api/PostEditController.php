@@ -13,6 +13,21 @@ class PostEditController extends Controller
     use AuthorizesRequests;
 
     /**
+     * جلب الكود الأصلي (BBCode) من قاعدة البيانات لعرضه بجانب المحرر
+     * GET /post/{id}/ajax/raw
+     */
+    public function getRaw(int $id)
+    {
+        $post = Post::findOrFail($id);
+        $this->authorize('update', $post);
+
+        return response()->json([
+            'success' => true,
+            'raw_pagetext' => $post->pagetext ?? '',
+        ]);
+    }
+
+    /**
      * حفظ تعديلات الرد باستخدام المحرر الجديد
      */
     public function update(PostEditRequest $request, int $id)

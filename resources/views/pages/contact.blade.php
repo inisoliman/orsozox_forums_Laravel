@@ -73,6 +73,18 @@
                                 rows="5" placeholder="اكتب رسالتك، اقتراحك، أو طلب تصحيح أي محتوى..."
                                 required>{{ old('message') }}</textarea>
                         </div>
+                        <div class="mb-4">
+                            <label for="captcha" class="form-label fs-5">التحقق البشري</label>
+                            <label class="form-label d-block text-warning fw-bold mb-2">ما هو حاصل جمع {{ $num1 }} +
+                                {{ $num2 }}؟</label>
+                            <input type="number" name="captcha"
+                                class="form-control form-control-lg bg-dark text-light border-secondary" id="captcha"
+                                placeholder="أدخل النتيجة (أرقام فقط)" required>
+                            @error('captcha')
+                                <div class="text-danger mt-1 small"><i class="fas fa-exclamation-circle"></i> {{ $message }}
+                                </div>
+                            @enderror
+                        </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg rounded-pill fw-bold"><i
                                     class="fas fa-paper-plane me-2"></i> إرسال الرسالة</button>
