@@ -92,6 +92,30 @@ class RedirectController extends Controller
     }
 
     /**
+     * تحويل روابط أرشيف vBulletin القديمة التي تأتي كـ query string بدون مفتاح واضح.
+     * أمثلة من Google Search Console:
+     * /archive/index.php?t-25873-p-2.html → /thread/25873/slug
+     * /archive/index.php?t-25873.html     → /thread/25873/slug
+     * /archive/index.php?f-118.html       → /forum/118/slug
+     *
+     * السبب: هذه الروابط كانت ترجع 404 وتظهر في GSC، فتضيع إشارات قديمة وتسبب جودة فهرسة ضعيفة.
+     */
+    public function archiveIndex(Request $request)
+    {
+        $queryString = (string) $request->server('QUERY_STRING', '');
+
+        if (preg_match('/(?:^|&)t-([0-9]+)(?:-p-[0-9]+)?\.html$/i', $queryString, $matches)) {
+            return $this->archiveThread((int) $matches[1]);
+        }
+
+        if (preg_match('/(?:^|&)f-([0-9]+)(?:-p-[0-9]+)?\.html$/i', $queryString, $matches)) {
+            return $this->archiveForum((int) $matches[1]);
+        }
+
+        abort(404);
+    }
+
+    /**
      * تحويل روابط أرشيف الأقسام القديمة
      * /archive/index.php/f-{id}.html → /forum/{id}/{slug}
      */
@@ -132,5 +156,31 @@ class RedirectController extends Controller
         // 301 → صفحة البحث
         return redirect('/search?' . http_build_query(['q' => $tag]), 301);
     }
+
+    /**
+     * vBSEO: /f{forum_id} → /forum/{id}/{slug}
+     */
+    public function vbseoForum($forum_id)
+    {
+        $forum = Forum::find($forum_id);
+        if ($forum) {
+            return redirect($forum->url, 301);
+        }
+        abort(404);
+    }
+
+    /**
+     * vBSEO: /f{forum_id}/t{thread_id} → /thread/{id}/{slug}
+     */
+    public function vbseoThread($forum_id, $thread_id)
+    {
+        $thread = Thread::find($thread_id);
+        if ($thread) {
+            return redirect($thread->url, 301);
+        }
+        abort(404);
+    }
 }
+
+
 

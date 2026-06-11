@@ -7,6 +7,9 @@
 @section('content')
     <div class="container mt-4">
 
+        {{-- Page Watermark --}}
+        <div class="search-page-watermark">بحث</div>
+
         {{-- Breadcrumb --}}
         <div class="breadcrumb-modern">
             <nav>
@@ -259,6 +262,22 @@
             color: var(--text-muted, #8b8fa3);
             line-height: 1.6;
             padding: 6px 0;
+        }
+
+        /* Page Watermark */
+        .search-page-watermark {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(-25deg);
+            font-size: clamp(5rem, 20vw, 15rem);
+            font-weight: 900;
+            color: rgba(var(--accent-rgb, 139, 92, 246), 0.04);
+            pointer-events: none;
+            z-index: 1;
+            user-select: none;
+            white-space: nowrap;
+            letter-spacing: 0.05em;
         }
     </style>
 @endsection

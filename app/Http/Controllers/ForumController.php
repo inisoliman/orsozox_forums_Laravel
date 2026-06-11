@@ -46,7 +46,8 @@ class ForumController extends Controller
             ->orderBy('sticky', 'desc')
             ->orderBy('dateline', 'desc')
             ->with(['author'])
-            ->paginate(20);
+            // simplePaginate avoids an extra COUNT(*) per forum page under crawler load.
+            ->simplePaginate(20);
 
         return view('forum.show', compact('forum', 'threads'));
     }

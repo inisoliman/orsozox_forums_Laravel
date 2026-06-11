@@ -41,29 +41,32 @@ class UpdateLegacySession
         $response = $next($request);
 
         try {
-            // Skip bots — they don't need session tracking
             $userAgent = $request->userAgent() ?? '';
-            if ($this->isBot($userAgent)) {
-                return $response;
-            }
+            $isBot = $this->isBot($userAgent);
 
-            // Skip static asset requests
+            // Skip static asset requests (for both bots and humans)
             $path = $request->path();
             if ($this->isStaticAsset($path)) {
                 return $response;
             }
 
-            // Throttle: update session at most once per 60 seconds per user
-            $throttleKey = 'session_update_' . ($request->ip() ?? 'unknown');
+            // Throttle: humans every 60s, bots every 5 minutes (lighter DB load),
+            // keyed by IP + a bot/human flag so both are tracked separately.
+            $throttleSeconds = $isBot ? 300 : 60;
+            $throttleKey = 'session_update_' . ($isBot ? 'bot_' : '') . ($request->ip() ?? 'unknown');
             if (Cache::has($throttleKey)) {
                 return $response;
             }
-            Cache::put($throttleKey, true, 60);
+            Cache::put($throttleKey, true, $throttleSeconds);
 
-            $this->updateSession($request);
+            // Bots are now tracked so they appear in the "Who is online" page,
+            // but they never get a Laravel session cookie — we always treat them
+            // as guests (userid 0) and key their session row by IP + UserAgent.
+            $this->updateSession($request, $isBot);
         } catch (\Exception $e) {
             // Fails silently to avoid breaking the site
         }
+
 
         return $response;
     }
@@ -90,7 +93,7 @@ class UpdateLegacySession
         return in_array($ext, $this->skipExtensions);
     }
 
-    protected function updateSession(Request $request)
+    protected function updateSession(Request $request, bool $isBot = false)
     {
         $sessionHash = LaravelSession::get('vb_sessionhash');
         $ip = $request->ip();
@@ -102,7 +105,20 @@ class UpdateLegacySession
             $userAgent = substr($userAgent, 0, 97) . '...';
         }
 
+        // Bots never carry a session cookie. Track them directly by IP + UserAgent
+        // so they show up in the "Who is online" page as crawlers.
+        if ($isBot) {
+            $this->upsertBotSession($request, $ip, $path, $userAgent);
+
+            // Garbage Collector: 2% chance to clean old sessions
+            if (rand(1, 100) <= 2) {
+                VBSession::where('lastactivity', '<', time() - 900)->delete();
+            }
+            return;
+        }
+
         if ($sessionHash) {
+
             // Try to find existing session
             $session = VBSession::where('sessionhash', $sessionHash)->first();
 
@@ -136,10 +152,44 @@ class UpdateLegacySession
         }
     }
 
+    /**
+     * Track a search-engine / crawler bot in the vBulletin session table.
+     * Bots have no cookie, so we key the row deterministically by IP + UserAgent
+     * (userid is always 0 / guest). This makes them appear in "Who is online".
+     */
+    protected function upsertBotSession($request, $ip, $path, $userAgent): void
+    {
+        $existing = VBSession::where('host', $ip)
+            ->where('useragent', $userAgent)
+            ->where('userid', 0)
+            ->first();
+
+        if ($existing) {
+            $existing->lastactivity = time();
+            $existing->location = $path;
+            $existing->save();
+            return;
+        }
+
+        $session = new VBSession();
+        $session->sessionhash = md5('bot' . $ip . $userAgent);
+        $session->userid = 0;
+        $session->host = $ip;
+        $session->idhash = md5($ip);
+        $session->lastactivity = time();
+        $session->location = $path;
+        $session->useragent = $userAgent;
+        $session->loggedin = 0;
+        $session->badlocation = 0;
+        $session->bypass = 0;
+        $session->save();
+    }
+
     protected function createSession($hash, $request, $ip, $path, $userAgent)
     {
         // Calculate idhash (vBulletin simple equivalent)
         $idhash = md5($ip);
+
 
         // Check if a session already exists for this IP/UserAgent to avoid duplicates for Guests
         if (!Auth::check()) {

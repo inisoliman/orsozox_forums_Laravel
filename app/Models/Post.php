@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Helpers\BBCodeParser;
+use Illuminate\Support\Facades\Cache;
 
 class Post extends Model
 {
@@ -80,20 +81,25 @@ class Post extends Model
     public function getParsedContentAttribute(): string
     {
         $text = (string) ($this->pagetext ?? '');
+        $cacheKey = 'post_parsed_content:' . $this->postid . ':' . md5($text);
 
-        if (str_starts_with($text, '<!-- HTML -->')) {
-            $parsed = str_replace('<!-- HTML -->', '', $text);
-        } else {
-            $parsed = BBCodeParser::parse($text);
-        }
+        // BBCode parsing + image proxy transformation is CPU-heavy on old forum posts.
+        // Cache by post id and content hash so edits automatically produce a new cache key.
+        return Cache::remember($cacheKey, 86400, function () use ($text) {
+            if (str_starts_with($text, '<!-- HTML -->')) {
+                $parsed = str_replace('<!-- HTML -->', '', $text);
+            } else {
+                $parsed = BBCodeParser::parse($text);
+            }
 
-        // Apply YouTube Lite Auto-Embed
-        $parsed = app(\App\Services\YouTubeLiteEmbedService::class)->transformContent($parsed);
+            // Apply YouTube Lite Auto-Embed
+            $parsed = app(\App\Services\YouTubeLiteEmbedService::class)->transformContent($parsed);
 
-        // Apply Image Proxy (LIIMS — broken image handling)
-        $parsed = app(\App\Services\ImageProxyService::class)->transformContent($parsed);
+            // Apply Image Proxy (LIIMS — broken image handling)
+            $parsed = app(\App\Services\ImageProxyService::class)->transformContent($parsed);
 
-        return $parsed;
+            return $parsed;
+        });
     }
 
     /**

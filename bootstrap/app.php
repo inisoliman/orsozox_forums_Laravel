@@ -12,14 +12,19 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        $middleware->web(prepend: [
+            \App\Http\Middleware\BotTrafficProtectionMiddleware::class,
+        ]);
+
         $middleware->web(append: [
-            \App\Http\Middleware\GzipMiddleware::class,
             \App\Http\Middleware\UpdateLegacySession::class,
             \App\Http\Middleware\SecurityHeadersMiddleware::class,
             \App\Http\Middleware\HtmlMinifyMiddleware::class,
+            \App\Http\Middleware\PerformanceMonitorMiddleware::class,
         ]);
 
         $middleware->api(prepend: [
+            \App\Http\Middleware\BotTrafficProtectionMiddleware::class,
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);
     })

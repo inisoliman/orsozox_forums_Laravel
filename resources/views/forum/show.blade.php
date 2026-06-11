@@ -80,7 +80,8 @@
         <div class="section-header">
             <div class="icon"><i class="fas fa-list-ul"></i></div>
             <h2>المواضيع</h2>
-            <span class="text-muted-custom" style="font-size:0.85rem">{{ $threads->total() }} موضوع</span>
+            {{-- simplePaginate is used to avoid COUNT(*) on large forums under crawler load. --}}
+            <span class="text-muted-custom" style="font-size:0.85rem">{{ number_format($forum->threadcount ?? $threads->count()) }} موضوع</span>
         </div>
 
         @forelse($threads as $thread)

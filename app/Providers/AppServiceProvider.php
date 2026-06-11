@@ -7,6 +7,8 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Pagination\Paginator;
 use App\Models\Forum;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -42,6 +44,19 @@ class AppServiceProvider extends ServiceProvider
         // Share settings globally
         View::share('themeSettings', new \App\Services\ThemeSettings());
 
+        if ((bool) env('PERFORMANCE_QUERY_LOG', false)) {
+            DB::listen(function ($query): void {
+                $threshold = (int) env('PERFORMANCE_SLOW_QUERY_MS', 250);
+                if ($query->time >= $threshold) {
+                    Log::warning('slow_query', [
+                        'time_ms' => $query->time,
+                        'sql' => $query->sql,
+                        'bindings' => $query->bindings,
+                    ]);
+                }
+            });
+        }
+
         // Share forums globally for navbar
         View::composer('layouts.app', function ($view) {
             $forums = Cache::remember('nav_forums', 3600, function () {
@@ -59,9 +74,11 @@ class AppServiceProvider extends ServiceProvider
 
             // Share active news tickers for the ticker bar (moved from view query)
             try {
-                $tickers = \App\Models\NewsTicker::where('is_active', true)
-                    ->orderBy('sort_order', 'asc')
-                    ->get();
+                $tickers = Cache::remember('active_news_tickers', 600, function () {
+                    return \App\Models\NewsTicker::where('is_active', true)
+                        ->orderBy('sort_order', 'asc')
+                        ->get();
+                });
             } catch (\Exception $e) {
                 $tickers = collect();
             }

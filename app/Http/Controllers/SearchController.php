@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Services\SearchService;
 use App\Helpers\SearchHighlightHelper;
 use App\Models\Forum;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 
 class SearchController extends Controller
@@ -65,7 +66,9 @@ class SearchController extends Controller
         $excerpts = [];
 
         // Get forums list for filter dropdown
-        $forums = Forum::active()->ordered()->get(['forumid', 'title']);
+        $forums = Cache::remember('search_active_forums', 3600, function () {
+            return Forum::active()->ordered()->get(['forumid', 'title']);
+        });
 
         if (!empty($query)) {
             // Validate
@@ -104,7 +107,7 @@ class SearchController extends Controller
                     $firstPosts = \App\Models\Post::whereIn('threadid', $threadIds)
                         ->where('visible', 1)
                         ->orderBy('dateline', 'asc')
-                        ->get()
+                        ->get(['postid', 'threadid', 'pagetext', 'dateline'])
                         ->groupBy('threadid')
                         ->map(fn($posts) => $posts->first());
 

@@ -14,7 +14,8 @@ class ThreadController extends Controller
      */
     public function show(\App\Services\ThreadSeoService $seoService, int $id, ?string $slug = null)
     {
-        $thread = Thread::with(['forum', 'author'])->visible()->findOrFail($id);
+        // Load SEO-related relations up front to avoid hidden lazy queries in ThreadSeoService.
+        $thread = Thread::with(['forum', 'author', 'firstPost.attachments'])->visible()->findOrFail($id);
 
         // التحقق من صلاحية الوصول لقسم الموضوع
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
@@ -55,7 +56,8 @@ class ThreadController extends Controller
             ->visible()
             ->chronological()
             ->with(['author', 'attachments'])
-            ->paginate(15);
+            // Avoid COUNT(*) on the large post table; next/previous links are enough here.
+            ->simplePaginate(15);
 
         // الموضوع التالي والسابق في نفس القسم
         $nextThread = Thread::where('forumid', $thread->forumid)

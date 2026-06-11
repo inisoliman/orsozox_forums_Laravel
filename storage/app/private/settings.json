@@ -1,0 +1,30 @@
+{
+    "site_name": "منتدى ارثوذكس",
+    "site_description": null,
+    "maintenance_mode": false,
+    "news_ticker_enabled": false,
+    "ads": {
+        "enabled": true,
+        "excluded_forums": "156,38,44,43,62,63,83,113,64,105,65,112,66,107,68,108,67,159,160,69,70,71,72,104,73,74,75,76,77,121,45,156,118,55,45,118,117,46,47,155,48,49,50,51,52,53,55,54,39,40,41,42,43,44",
+        "header_code": "<script async src=\"https:\/\/pagead2.googlesyndication.com\/pagead\/js\/adsbygoogle.js?client=ca-pub-6641144473760934\"\n     crossorigin=\"anonymous\"><\/script>\n<!-- Header_Banner_orsozox -->\n<ins class=\"adsbygoogle\"\n     style=\"display:block\"\n     data-ad-client=\"ca-pub-6641144473760934\"\n     data-ad-slot=\"9007900828\"\n     data-ad-format=\"auto\"\n     data-full-width-responsive=\"true\"><\/ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n<\/script>",
+        "sidebar_code": "<script async src=\"https:\/\/pagead2.googlesyndication.com\/pagead\/js\/adsbygoogle.js?client=ca-pub-6641144473760934\"\n     crossorigin=\"anonymous\"><\/script>\n<ins class=\"adsbygoogle\"\n     style=\"display:block; text-align:center;\"\n     data-ad-layout=\"in-article\"\n     data-ad-format=\"fluid\"\n     data-ad-client=\"ca-pub-6641144473760934\"\n     data-ad-slot=\"8928009775\"><\/ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n<\/script>",
+        "feed_code": "<script async src=\"https:\/\/pagead2.googlesyndication.com\/pagead\/js\/adsbygoogle.js?client=ca-pub-6641144473760934\"\n     crossorigin=\"anonymous\"><\/script>\n<!-- وحده اعلانيه تلقائي -->\n<ins class=\"adsbygoogle\"\n     style=\"display:block\"\n     data-ad-client=\"ca-pub-6641144473760934\"\n     data-ad-slot=\"4847177080\"\n     data-ad-format=\"auto\"\n     data-full-width-responsive=\"true\"><\/ins>\n<script>\n     (adsbygoogle = window.adsbygoogle || []).push({});\n<\/script>"
+    },
+    "scripts": {
+        "header": null,
+        "footer": null
+    },
+    "css": {
+        "custom": null
+    },
+    "social": {
+        "facebook": "https:\/\/www.facebook.com\/orsozox",
+        "twitter": "https:\/\/twitter.com\/Orsozox",
+        "youtube": "https:\/\/www.youtube.com\/@orsozox",
+        "instagram": "https:\/\/www.instagram.com\/orsozox",
+        "telegram": "https:\/\/t.me\/orsozoxch"
+    },
+    "footer": {
+        "about": null
+    }
+}

@@ -19,8 +19,18 @@ class AuthController extends Controller
     }
 
     /**
+     * التسجيل مغلق حالياً — تحويل لصفحة الدخول مع رسالة.
+     * (دالة Controller بدلاً من closure حتى يبقى route:cache آمناً)
+     */
+    public function registerClosed()
+    {
+        return redirect()->route('login')->with('error', 'التسجيل مغلق حالياً');
+    }
+
+    /**
      * معالجة تسجيل الدخول
      */
+
     public function login(Request $request)
     {
         $request->validate([

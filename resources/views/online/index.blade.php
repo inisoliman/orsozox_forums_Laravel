@@ -102,8 +102,9 @@
             </div>
 
             <div class="d-flex justify-content-center mt-4">
-                {{ $paginator->links('pagination::bootstrap-5') }}
+                {{ $paginator->links() }}
             </div>
+
         @else
             <div class="alert alert-warning text-center">
                 لا يوجد أي متصلين في الوقت الحالي.

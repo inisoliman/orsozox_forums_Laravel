@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Thread;
 use App\Models\Forum;
+use App\Services\FirewallDecisionService;
 use Illuminate\Support\Facades\Cache;
 
 class HomeController extends Controller
@@ -12,8 +13,10 @@ class HomeController extends Controller
     /**
      * الصفحة الرئيسية
      */
-    public function index()
+    public function index(FirewallDecisionService $firewall)
     {
+        $survivalMode = $firewall->survivalModeActive();
+
         // تحديد مجموعة المستخدم الحالي لعزل الـ Cache
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
 
@@ -22,8 +25,10 @@ class HomeController extends Controller
         // ملاحظة: استبدلنا inRandomOrder() (بطيء على MySQL الكبيرة)
         // بـ fast random offset — أسرع بـ 100x على shared hosting
         // ————————————————————————————————————————
-        $latestThreads = Cache::remember("home_archive_{$usergroupId}_" . date('Y-m-d-H'), 3600, function () {
-            $maxOffset = max(0, Thread::visible()->count() - 5);
+        $latestThreads = $survivalMode ? collect() : Cache::remember("home_archive_{$usergroupId}_" . date('Y-m-d-H'), 3600, function () {
+            // Avoid repeated COUNT(*) on the large thread table during crawler waves.
+            $threadCount = Cache::remember('home_visible_thread_count', 3600, fn() => Thread::visible()->count());
+            $maxOffset = max(0, $threadCount - 5);
             $offset = $maxOffset > 0 ? random_int(0, $maxOffset) : 0;
 
             return Thread::visible()
@@ -34,7 +39,7 @@ class HomeController extends Controller
         });
 
         // أكثر المواضيع مشاهدة (مخصص حسب المجموعة)
-        $popularThreads = Cache::remember("home_popular_{$usergroupId}", 3600, function () {
+        $popularThreads = $survivalMode ? collect() : Cache::remember("home_popular_{$usergroupId}", 3600, function () {
             return Thread::visible()
                 ->mostViewed()
                 ->with(['forum', 'author'])
@@ -45,8 +50,10 @@ class HomeController extends Controller
         // ————————————————————————————————————————
         // مواضيع مميزة (عشوائية — تتغير كل ساعة)
         // ————————————————————————————————————————
-        $topThreadsYear = Cache::remember("home_featured_{$usergroupId}_" . date('Y-m-d-H'), 3600, function () {
-            $maxOffset = max(0, Thread::visible()->count() - 5);
+        $topThreadsYear = $survivalMode ? collect() : Cache::remember("home_featured_{$usergroupId}_" . date('Y-m-d-H'), 3600, function () {
+            // Reuse cached visible count; COUNT(*) can be expensive on shared MySQL.
+            $threadCount = Cache::remember('home_visible_thread_count', 3600, fn() => Thread::visible()->count());
+            $maxOffset = max(0, $threadCount - 5);
             $offset = $maxOffset > 0 ? random_int(0, $maxOffset) : 0;
 
             return Thread::visible()
@@ -76,7 +83,19 @@ class HomeController extends Controller
         });
 
         // إحصائيات عامة
-        $stats = Cache::remember('home_stats', 3600, function () {
+        // ملاحظة: في وضع البقاء نخزّن الإحصائيات الصفرية لمدة قصيرة فقط (دقيقتان)
+        // حتى يتعافى الموقع سريعاً بمجرد انتهاء وضع البقاء، وإلا تبقى الأصفار 6 ساعات.
+        $stats = Cache::remember($survivalMode ? 'home_stats_survival' : 'home_stats', $survivalMode ? 120 : 3600, function () use ($survivalMode) {
+
+            if ($survivalMode) {
+                return [
+                    'threads' => Cache::get('home_visible_thread_count', 0),
+                    'forums' => 0,
+                    'users' => 0,
+                    'posts' => 0,
+                ];
+            }
+
             return [
                 'threads' => Thread::visible()->count(),
                 'forums' => Forum::active()->count(),
@@ -85,7 +104,7 @@ class HomeController extends Controller
             ];
         });
 
-        return view('home', compact('latestThreads', 'popularThreads', 'forums', 'stats', 'topThreadsYear'));
+        return view('home', compact('latestThreads', 'popularThreads', 'forums', 'stats', 'topThreadsYear', 'survivalMode'));
     }
 
     /**
@@ -106,4 +125,6 @@ class HomeController extends Controller
         return Cache::remember($todayKey, 86400, $callback);
     }
 }
+
+
 

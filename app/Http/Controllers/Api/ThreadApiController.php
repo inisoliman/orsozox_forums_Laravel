@@ -14,13 +14,16 @@ class ThreadApiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $perPage = min(max((int) $request->input('per_page', 20), 1), 50);
+
         $threads = Thread::visible()
             ->orderBy('dateline', 'desc')
             ->with(['forum:forumid,title', 'author:userid,username'])
             ->when($request->input('forum_id'), function ($q, $forumId) {
                 $q->where('forumid', $forumId);
             })
-            ->paginate($request->input('per_page', 20));
+            // simplePaginate prevents expensive API COUNT(*) calls.
+            ->simplePaginate($perPage);
 
         return response()->json([
             'status' => 'success',
@@ -37,7 +40,8 @@ class ThreadApiController extends Controller
             'forum:forumid,title',
             'author:userid,username',
             'posts' => function ($q) {
-                $q->visible()->chronological()->with('author:userid,username');
+                // Cap embedded posts to prevent one API request from loading huge threads.
+                $q->visible()->chronological()->with('author:userid,username')->limit(50);
             },
         ])->visible()->findOrFail($id);
 

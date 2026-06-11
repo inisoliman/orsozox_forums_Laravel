@@ -34,10 +34,6 @@ Route::post('/newsletter/subscribe', [NewsletterController::class, 'subscribe'])
     ->name('newsletter.subscribe')
     ->middleware(\Illuminate\Routing\Middleware\ThrottleRequests::class . ':5,1');
 
-Route::get('/clear-home-cache', function () {
-    \Illuminate\Support\Facades\Cache::flush();
-    return 'Cache cleared successfully. Please check the homepage now.';
-})->middleware('auth');
 /*
 |--------------------------------------------------------------------------
 | المسارات الأمامية — Web Routes
@@ -74,9 +70,8 @@ Route::get('/posts/{postid}', [PostController::class, 'show'])->name('post.show'
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
-Route::get('/register', function () {
-    return redirect()->route('login')->with('error', 'التسجيل مغلق حالياً');
-})->name('register');
+Route::get('/register', [AuthController::class, 'registerClosed'])->name('register');
+
 
 // خرائط الموقع — Sitemap Index + Sub-sitemaps
 Route::get('/sitemap.xml', [SitemapController::class, 'index'])->name('sitemap');
@@ -89,6 +84,12 @@ Route::get('/online-users', [OnlineUsersController::class, 'index'])->name('onli
 
 // عمليات التعديل للواجهة الأمامية (AJAX Moderation)
 Route::middleware('auth')->group(function () {
+    // فحص تكرار عنوان الموضوع داخل Filament/لوحة الإدارة.
+    // يُبقى هنا ضمن web middleware لأن الواجهة ترسل CSRF وتعتمد على جلسة المستخدم.
+    Route::post('/api/thread/validate-duplicate', [ThreadValidationController::class, 'checkDuplicate'])
+        ->name('thread.validate-duplicate')
+        ->middleware(\Illuminate\Routing\Middleware\ThrottleRequests::class . ':20,1');
+
     // تعديل الموضوع باستخدام CKEditor
     Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadEditController::class, 'update'])->name('thread.ajax.edit');
     // تعديل الردود باستخدام CKEditor
@@ -118,6 +119,10 @@ Route::get('/forumdisplay.php', [RedirectController::class, 'forumDisplay']);
 Route::get('/member.php', [RedirectController::class, 'member']);
 
 // Legacy Archive Redirects (SEO: 301 preserves link equity)
+// /archive/index.php?t-123.html or ?t-123-p-2.html → /thread/123/slug
+// مهم للسيو: يلتقط روابط أرشيف vBulletin القديمة التي تأتي كـ query string.
+Route::get('/archive/index.php', [RedirectController::class, 'archiveIndex']);
+
 // /archive/index.php/t-123.html → /thread/123/slug
 Route::get('/archive/index.php/t-{id}.html', [RedirectController::class, 'archiveThread'])
     ->where('id', '[0-9]+');
@@ -131,30 +136,10 @@ Route::get('/archive/index.php/f-{id}.html', [RedirectController::class, 'archiv
 Route::get('/tags.php', [RedirectController::class, 'tags']);
 
 // vBSEO / Simple Rewriting Redirects
-Route::get('/f{forum_id}', function ($forum_id) {
-    $forum = \App\Models\Forum::find($forum_id);
-    if ($forum)
-        return redirect($forum->url, 301);
-    abort(404);
-})->where('forum_id', '[0-9]+');
+// ملاحظة: حُوِّلت من closures إلى دوال Controller حتى يبقى route:cache آمناً
+// (الـ closures في الراوتس تكسر route:cache وتسبب خطأ 405).
+Route::get('/f{forum_id}', [RedirectController::class, 'vbseoForum'])->where('forum_id', '[0-9]+');
+Route::get('/f{forum_id}/', [RedirectController::class, 'vbseoForum'])->where('forum_id', '[0-9]+');
+Route::get('/f{forum_id}/t{thread_id}', [RedirectController::class, 'vbseoThread'])->where(['forum_id' => '[0-9]+', 'thread_id' => '[0-9]+']);
+Route::get('/f{forum_id}/t{thread_id}/', [RedirectController::class, 'vbseoThread'])->where(['forum_id' => '[0-9]+', 'thread_id' => '[0-9]+']);
 
-Route::get('/f{forum_id}/', function ($forum_id) {
-    $forum = \App\Models\Forum::find($forum_id);
-    if ($forum)
-        return redirect($forum->url, 301);
-    abort(404);
-})->where('forum_id', '[0-9]+');
-
-Route::get('/f{forum_id}/t{thread_id}', function ($forum_id, $thread_id) {
-    $thread = \App\Models\Thread::find($thread_id);
-    if ($thread)
-        return redirect($thread->url, 301);
-    abort(404);
-})->where(['forum_id' => '[0-9]+', 'thread_id' => '[0-9]+']);
-
-Route::get('/f{forum_id}/t{thread_id}/', function ($forum_id, $thread_id) {
-    $thread = \App\Models\Thread::find($thread_id);
-    if ($thread)
-        return redirect($thread->url, 301);
-    abort(404);
-})->where(['forum_id' => '[0-9]+', 'thread_id' => '[0-9]+']);

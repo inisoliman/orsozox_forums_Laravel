@@ -14,11 +14,14 @@ class PostApiController extends Controller
      */
     public function index(int $threadId, Request $request): JsonResponse
     {
+        $perPage = min(max((int) $request->input('per_page', 20), 1), 50);
+
         $posts = Post::where('threadid', $threadId)
             ->visible()
             ->chronological()
             ->with('author:userid,username')
-            ->paginate($request->input('per_page', 20));
+            // simplePaginate avoids COUNT(*) on large legacy post tables.
+            ->simplePaginate($perPage);
 
         return response()->json([
             'status' => 'success',

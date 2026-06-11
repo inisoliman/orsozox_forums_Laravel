@@ -37,8 +37,14 @@
     </section>
 
     <div class="container">
+        @if(!empty($survivalMode))
+            <div class="alert alert-warning text-center">
+                يعمل المنتدى حالياً في وضع الحماية المؤقت لتقليل الضغط على الخادم. التصفح الأساسي والفهرسة مستمران بشكل طبيعي.
+            </div>
+        @endif
+
         {{-- Feed Ad --}}
-        @if($themeSettings->shouldShowAds() && $adCode = $themeSettings->get('ads.feed_code'))
+        @if(empty($survivalMode) && $themeSettings->shouldShowAds() && $adCode = $themeSettings->get('ads.feed_code'))
             <div class="ad-slot ad-feed mb-4 text-center">
                 <div class="ad-label small text-muted mb-1">- إعلان -</div>
                 {!! $adCode !!}
@@ -123,7 +129,7 @@
                     </div>
 
                     {{-- Inject Feed Ad after every loop (or specifically after the first one) --}}
-                    @if($loop->first && $feedAd = $themeSettings->get('ads.feed_code'))
+                    @if(empty($survivalMode) && $loop->first && $feedAd = $themeSettings->get('ads.feed_code'))
                         @if($themeSettings->shouldShowAds())
                             <div class="ad-slot ad-leaderboard" style="height: auto; min-height: 90px; margin: 20px auto;">
                                 {!! $feedAd !!}
@@ -233,7 +239,7 @@
                 @endpush
 
                 {{-- Sidebar Ad --}}
-                @if($themeSettings->shouldShowAds() && $sidebarAd = $themeSettings->get('ads.sidebar_code'))
+                @if(empty($survivalMode) && $themeSettings->shouldShowAds() && $sidebarAd = $themeSettings->get('ads.sidebar_code'))
                     <div class="ad-slot ad-rectangle">
                         {!! $sidebarAd !!}
                     </div>
@@ -259,7 +265,7 @@
                 </div>
 
                 {{-- Random Featured Threads Widget (Crawl Depth Enhancement) --}}
-                @if(isset($topThreadsYear) && $topThreadsYear->isNotEmpty())
+                @if(empty($survivalMode) && isset($topThreadsYear) && $topThreadsYear->isNotEmpty())
                     <div class="glass-card p-4 sidebar-widget border-primary border-start border-4">
                         <h6 class="widget-title"><i class="fas fa-fire text-danger me-1"></i> مواضيع مميزة</h6>
                         <div class="d-flex flex-column gap-3">
@@ -285,6 +291,7 @@
                 @endif
 
                 {{-- Random Old/New Topics Widget --}}
+                @if(empty($survivalMode))
                 <div class="glass-card p-4 sidebar-widget">
                     <h6 class="widget-title">مواضيع من الأرشيف</h6>
                     <div class="d-flex flex-column gap-3">
@@ -307,6 +314,7 @@
                         @endforeach
                     </div>
                 </div>
+                @endif
 
             </div>
 

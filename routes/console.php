@@ -26,10 +26,18 @@ Artisan::command('forum:clear-cache', function () {
 */
 
 // تنظيف تلقائي يومي الساعة 3 فجراً
-Schedule::command('system:cleanup')->dailyAt('03:00');
+// Flush cached thread views regularly before old cache files are cleaned.
+Schedule::command('views:flush')
+    ->everyTenMinutes()
+    ->withoutOverlapping()
+    ->appendOutputTo(storage_path('logs/views-flush.log'));
+
+// Disabled: this runs cache:clear/config:clear/view:clear and is too aggressive for production traffic.
+// Use scripts/hostinger-cache-cleanup.sh from hosting cron for safe old-file cleanup instead.
+// Schedule::command('system:cleanup')->dailyAt('03:00');
 
 // إرسال رسائل تهنئة عيد الميلاد يومياً الساعة 8 صباحاً
-Schedule::command('email:birthday')
+Schedule::command('email:birthday-direct')
     ->dailyAt('08:00')
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/birthday-emails.log'));
