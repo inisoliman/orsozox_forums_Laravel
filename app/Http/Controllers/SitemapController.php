@@ -144,12 +144,18 @@ class SitemapController extends Controller
 
             foreach ($threads as $thread) {
                 // lastmod = تاريخ آخر رد حقيقي
-                $lastmod = $thread->last_post_date
-                    ? $thread->last_post_date->toW3cString()
+                $lastpostTs = (int) $thread->lastpost;
+                $lastmod = $lastpostTs > 0
+                    ? Carbon::createFromTimestamp($lastpostTs)->toW3cString()
                     : now()->toW3cString();
 
-                $xml .= $this->urlTag($thread->url, $lastmod, 'weekly', '0.6');
+                // ⭐ إشارات الحداثة الذكية: priority/changefreq حسب عمر النشاط
+                // (يحفز جوجل على فحص المواضيع النشطة دون إلغاء القديمة)
+                [$changefreq, $priority] = $this->freshnessSignals($lastpostTs);
+
+                $xml .= $this->urlTag($thread->url, $lastmod, $changefreq, $priority);
             }
+
 
             $xml .= '</urlset>';
             return $xml;
@@ -198,4 +204,37 @@ class SitemapController extends Controller
             "  </url>\n";
     }
 
+    /**
+     * إشارات الحداثة الذكية حسب عمر آخر نشاط في الموضوع.
+     *
+     * يساعد جوجل على:
+     *  - تركيز crawl budget على المواضيع النشطة (≤6 شهور).
+     *  - الاحتفاظ بالمواضيع القديمة كمحتوى مرجعي بدون إهدار موارد عليها.
+     *
+     * @return array{0: string, 1: string} [changefreq, priority]
+     */
+    private function freshnessSignals(int $lastpostTs): array
+    {
+        if ($lastpostTs <= 0) {
+            return ['yearly', '0.3'];
+        }
+
+        $ageDays = (int) floor((time() - $lastpostTs) / 86400);
+
+        if ($ageDays <= 30) {
+            // نشط جداً - آخر شهر
+            return ['daily', '0.9'];
+        }
+        if ($ageDays <= 180) {
+            // نشط - آخر 6 شهور
+            return ['weekly', '0.7'];
+        }
+        if ($ageDays <= 730) {
+            // قديم نسبياً - حتى سنتين
+            return ['monthly', '0.5'];
+        }
+        // أرشيف - أكثر من سنتين
+        return ['yearly', '0.3'];
+    }
 }
+

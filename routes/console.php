@@ -59,11 +59,13 @@ Schedule::command('email:validate-subscribers')
 // 🗺️ تحديث Sitemap يومياً الساعة 4 صباحاً
 // يُعيد توليد كاش sitemap.xml + sitemap-forums.xml + sitemap-threads-*.xml
 // مهم بعد أي تعديل مباشر على المواضيع من قاعدة البيانات
-Schedule::command('sitemap:warm --ping')
+// (لا نستخدم --ping لأن Google/Bing أوقفوا قبول /ping?sitemap=)
+Schedule::command('sitemap:warm')
     ->dailyAt('04:00')
     ->withoutOverlapping(60)
     ->runInBackground()
     ->appendOutputTo(storage_path('logs/sitemap-warm.log'));
+
 
 // 🩺 فحص صحة الـ sitemap أسبوعياً (تنبيه إذا فشل)
 Schedule::command('sitemap:health')
