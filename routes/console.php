@@ -55,3 +55,18 @@ Schedule::command('email:validate-subscribers')
     ->weeklyOn(1, '04:00') // Mondays 4am
     ->withoutOverlapping()
     ->appendOutputTo(storage_path('logs/validate-subscribers.log'));
+
+// 🗺️ تحديث Sitemap يومياً الساعة 4 صباحاً
+// يُعيد توليد كاش sitemap.xml + sitemap-forums.xml + sitemap-threads-*.xml
+// مهم بعد أي تعديل مباشر على المواضيع من قاعدة البيانات
+Schedule::command('sitemap:warm --ping')
+    ->dailyAt('04:00')
+    ->withoutOverlapping(60)
+    ->runInBackground()
+    ->appendOutputTo(storage_path('logs/sitemap-warm.log'));
+
+// 🩺 فحص صحة الـ sitemap أسبوعياً (تنبيه إذا فشل)
+Schedule::command('sitemap:health')
+    ->weeklyOn(0, '05:00') // Sundays 5am
+    ->appendOutputTo(storage_path('logs/sitemap-health.log'));
+
