@@ -254,6 +254,127 @@ forums/
 
 ---
 
+## 🧹 أوامر صيانة الروابط داخل المقالات
+
+هذه الأوامر مخصصة لفحص وتنظيف روابط المشاركات القديمة في جدول `post` بدون تغيير هيكل قاعدة بيانات vBulletin. كل أمر يعمل افتراضيًا في وضع معاينة آمن ولا يكتب أي تعديل إلا عند إضافة `--commit`.
+
+### تنظيف روابط `redirector.php`
+
+يفحص كل المقالات التي تحتوي على روابط تحويل قديمة مثل:
+
+```text
+https://www.orsozox.com/forums/redirector.php?url=http%3A%2F%2Fexample.com%2Ffile
+http://www.elm7ba.com/vb4/redirector.php?url=http://example.com/file
+```
+
+ويحولها إلى الرابط الأصلي النظيف. كما يصلح الروابط التي انكسرت سابقًا بسبب التصاق رابطين معًا، مثل:
+
+```text
+http://www.elm7ba.com/vb4http://www.zahbyalfam.com/pub_newtest/43_john.html
+```
+
+لتصبح:
+
+```text
+http://www.zahbyalfam.com/pub_newtest/43_john.html
+```
+
+تشغيل المعاينة بدون تعديل قاعدة البيانات:
+
+```bash
+php artisan posts:clean-redirector-links
+```
+
+تنفيذ التعديل الفعلي بعد مراجعة التقرير:
+
+```bash
+php artisan posts:clean-redirector-links --commit
+```
+
+تقرير المواضيع المتأثرة يحفظ افتراضيًا في:
+
+```text
+storage/app/redirector-link-cleaner-report.csv
+```
+
+### تحويل الروابط النصية إلى روابط قابلة للنقر
+
+يفحص كل المقالات التي تحتوي على روابط نصية عادية مثل:
+
+```text
+https://t.me/orsozox_file/480
+www.example.com/file
+```
+
+ويحولها إلى روابط قابلة للنقر. يتجاهل الروابط الموجودة بالفعل داخل `[url]...[/url]` أو `<a href="...">`، ويتجاهل روابط الصور داخل `[img]...[/img]`.
+
+تشغيل المعاينة بدون تعديل قاعدة البيانات:
+
+```bash
+php artisan posts:linkify-plain-urls
+```
+
+تنفيذ التعديل الفعلي بعد مراجعة التقرير:
+
+```bash
+php artisan posts:linkify-plain-urls --commit
+```
+
+تقرير المواضيع المتأثرة يحفظ افتراضيًا في:
+
+```text
+storage/app/plain-url-linkifier-report.csv
+```
+
+### خيارات مفيدة للأمرين
+
+يمكن استخدام هذه الخيارات مع الأمرين السابقين:
+
+```bash
+--limit=100
+--chunk=200
+--from-id=1000
+--to-id=5000
+--sample=20
+--report=storage/app/custom-report.csv
+```
+
+أمثلة:
+
+```bash
+php artisan posts:clean-redirector-links --limit=100
+php artisan posts:linkify-plain-urls --from-id=1000 --to-id=5000
+php artisan posts:clean-redirector-links --commit --report=storage/app/redirector-final.csv
+```
+
+### التأكد من اكتمال التنظيف
+
+بعد تنفيذ أي أمر، شغله مرة أخرى بدون `--commit`. إذا ظهرت القيم التالية بصفر فهذا يعني أنه لا توجد تعديلات متبقية لهذا النوع:
+
+```text
+Posts changed: 0
+Redirector/malformed links cleaned: 0
+Topics affected: 0
+```
+
+أو:
+
+```text
+Posts changed: 0
+Plain URLs linkified: 0
+Topics affected: 0
+```
+
+ويمكن التأكد من عدم وجود روابط `redirector.php` قديمة عبر SQL:
+
+```sql
+SELECT COUNT(*) AS remaining_redirector_links
+FROM post
+WHERE pagetext LIKE '%redirector.php%';
+```
+
+---
+
 ## 📘 التوثيق
 
 | الملف | المحتوى |
