@@ -17,8 +17,7 @@ use App\Http\Controllers\ImageProxyController;
 use App\Http\Controllers\UnsubscribeController;
 use App\Http\Controllers\NewsletterController;
 use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 
 Route::get('/image-proxy/{hash}', [ImageProxyController::class, 'show'])
     ->where('hash', '[a-f0-9]{64}')
@@ -48,7 +47,9 @@ Route::get('/about', [PageController::class, 'about'])->name('page.about');
 Route::get('/editorial-policy', [PageController::class, 'editorial'])->name('page.editorial');
 Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('page.privacy');
 Route::get('/contact', [PageController::class, 'contact'])->name('page.contact');
-Route::post('/contact', [PageController::class, 'submitContact'])->name('page.contact.submit');
+Route::post('/contact', [PageController::class, 'submitContact'])
+    ->name('page.contact.submit')
+    ->middleware(ThrottleRequests::class . ':10,1');
 
 // الأقسام
 Route::get('/forum/{id}/{slug?}', [ForumController::class, 'show'])->name('forum.show')->where('id', '[0-9]+');
@@ -60,15 +61,21 @@ Route::get('/thread/{id}/{slug?}', [ThreadController::class, 'show'])->name('thr
 Route::get('/user/{id}', [UserController::class, 'show'])->name('user.show')->where('id', '[0-9]+');
 
 // البحث
-Route::get('/search', [SearchController::class, 'index'])->name('search');
-Route::get('/search/suggest', [SearchController::class, 'suggest'])->name('search.suggest');
+Route::get('/search', [SearchController::class, 'index'])
+    ->name('search')
+    ->middleware(ThrottleRequests::class . ':30,1');
+Route::get('/search/suggest', [SearchController::class, 'suggest'])
+    ->name('search.suggest')
+    ->middleware(ThrottleRequests::class . ':60,1');
 
 // رابط مباشر للمشاركة
 Route::get('/posts/{postid}', [PostController::class, 'show'])->name('post.show')->where('postid', '[0-9]+');
 
 // تسجيل الدخول
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.submit');
+Route::post('/login', [AuthController::class, 'login'])
+    ->name('login.submit')
+    ->middleware(ThrottleRequests::class . ':10,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
 Route::get('/register', [AuthController::class, 'registerClosed'])->name('register');
 
@@ -91,18 +98,33 @@ Route::middleware('auth')->group(function () {
         ->middleware(\Illuminate\Routing\Middleware\ThrottleRequests::class . ':20,1');
 
     // تعديل الموضوع باستخدام CKEditor
-    Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadEditController::class, 'update'])->name('thread.ajax.edit');
+    Route::post('/thread/{id}/ajax/edit', [\App\Http\Controllers\Api\ThreadEditController::class, 'update'])
+        ->name('thread.ajax.edit')
+        ->middleware(ThrottleRequests::class . ':30,1');
     // تعديل الردود باستخدام CKEditor
-    Route::post('/post/{id}/ajax/edit', [\App\Http\Controllers\Api\PostEditController::class, 'update'])->name('post.ajax.edit');
+    Route::post('/post/{id}/ajax/edit', [\App\Http\Controllers\Api\PostEditController::class, 'update'])
+        ->name('post.ajax.edit')
+        ->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/reply', [\App\Http\Controllers\ReplyController::class, 'store'])
+        ->name('thread.reply')
+        ->middleware(ThrottleRequests::class . ':10,1');
     // جلب الكود الأصلي (BBCode) من قاعدة البيانات
     Route::get('/post/{id}/ajax/raw', [\App\Http\Controllers\Api\PostEditController::class, 'getRaw'])->name('post.ajax.raw');
     // رفع الصور من داخل المحرر (ملف + رابط)
-    Route::post('/editor/upload', [\App\Http\Controllers\ImageUploadController::class, 'upload'])->name('editor.upload');
-    Route::post('/editor/upload-url', [\App\Http\Controllers\ImageUploadController::class, 'uploadByUrl'])->name('editor.upload.url');
+    Route::post('/editor/upload', [\App\Http\Controllers\ImageUploadController::class, 'upload'])
+        ->name('editor.upload')
+        ->middleware(ThrottleRequests::class . ':10,1');
+    Route::post('/editor/upload-url', [\App\Http\Controllers\ImageUploadController::class, 'uploadByUrl'])
+        ->name('editor.upload.url')
+        ->middleware(ThrottleRequests::class . ':5,1');
 
     // أدوات المشرف الأخرى
-    Route::post('/thread/{id}/ajax/move', [\App\Http\Controllers\Api\ThreadActionController::class, 'move'])->name('thread.ajax.move');
-    Route::post('/thread/{id}/ajax/delete', [\App\Http\Controllers\Api\ThreadActionController::class, 'destroy'])->name('thread.ajax.delete');
+    Route::post('/thread/{id}/ajax/move', [\App\Http\Controllers\Api\ThreadActionController::class, 'move'])
+        ->name('thread.ajax.move')
+        ->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/ajax/delete', [\App\Http\Controllers\Api\ThreadActionController::class, 'destroy'])
+        ->name('thread.ajax.delete')
+        ->middleware(ThrottleRequests::class . ':30,1');
 });
 
 // تحويل الروابط الخارجية (Redirector)

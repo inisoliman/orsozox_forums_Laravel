@@ -8,7 +8,10 @@ use Illuminate\Support\Facades\Log;
 
 class FirewallDecisionService
 {
-    public function __construct(private readonly TrafficClassificationService $classifier)
+    public function __construct(
+        private readonly TrafficClassificationService $classifier,
+        private readonly ClientIpResolver $clientIpResolver,
+    )
     {
     }
 
@@ -18,7 +21,7 @@ class FirewallDecisionService
     public function decide(Request $request): array
     {
         $classification = $this->classifier->classify($request);
-        $ip = $request->ip() ?? 'unknown';
+        $ip = $this->clientIpResolver->resolve($request);
         $path = '/' . ltrim($request->path(), '/');
         $identity = sha1($ip . '|' . substr($request->userAgent() ?? '', 0, 160));
 
@@ -33,8 +36,8 @@ class FirewallDecisionService
 
         $minuteKey = 'fw_rate:' . $identity . ':' . now()->format('YmdHi');
         $urlKey = 'fw_url:' . $identity . ':' . sha1($path) . ':' . now()->format('YmdHi');
-        $minuteHits = $this->increment($minuteKey, 70);
-        $sameUrlHits = $this->increment($urlKey, 70);
+        $minuteHits = $this->incrementCounter($minuteKey, 70);
+        $sameUrlHits = $this->incrementCounter($urlKey, 70);
 
         $score = $classification['score'];
         $score += $this->isExpensivePath($path) ? 20 : 0;
@@ -64,17 +67,19 @@ class FirewallDecisionService
         return Cache::has('survival_mode_active');
     }
 
-    private function increment(string $key, int $ttl): int
+    private function incrementCounter(string $key, int $ttl): int
     {
-        $value = (int) Cache::get($key, 0) + 1;
-        Cache::put($key, $value, $ttl);
-        return $value;
+        if (Cache::add($key, 1, $ttl)) {
+            return 1;
+        }
+
+        return (int) Cache::increment($key);
     }
 
     private function updateSurvivalMode(): void
     {
         $key = 'site_requests:' . now()->format('YmdHi');
-        $hits = $this->increment($key, 70);
+        $hits = $this->incrementCounter($key, 70);
         $threshold = (int) config('security.firewall.survival_mode_threshold_per_minute', 240);
 
         if ($hits > $threshold) {
@@ -107,7 +112,7 @@ class FirewallDecisionService
             'score' => $score,
             'class' => $classification['class'],
             'reason' => $classification['reason'],
-            'ip' => $request->ip(),
+            'ip' => $this->clientIpResolver->resolve($request),
             'country' => $request->headers->get('CF-IPCountry', 'unknown'),
             'url' => $request->fullUrl(),
             'user_agent' => substr($request->userAgent() ?? '', 0, 180),
@@ -117,7 +122,7 @@ class FirewallDecisionService
     private function countTraffic(string $class): void
     {
         $key = 'traffic_class:' . now()->format('YmdH') . ':' . $class;
-        Cache::put($key, (int) Cache::get($key, 0) + 1, 7200);
+        $this->incrementCounter($key, 7200);
     }
 
     /** @param array{class:string, engine:?string, verified:bool, score:int, reason:string} $classification */

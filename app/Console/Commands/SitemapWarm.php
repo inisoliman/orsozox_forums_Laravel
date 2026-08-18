@@ -6,7 +6,6 @@ use App\Http\Controllers\SitemapController;
 use App\Models\Thread;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Http;
 
 /**
  * sitemap:warm
@@ -40,7 +39,7 @@ class SitemapWarm extends Command
         }
 
         // 2) Recompute pages count
-        $threadCount = (int) Thread::visible()->count();
+        $threadCount = (int) Thread::publiclyIndexable()->count();
         $perPage = 1000;
         $pages = max(1, (int) ceil($threadCount / $perPage));
 

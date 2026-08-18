@@ -138,9 +138,21 @@ class Forum extends Model
         }
 
         // أخفِ القسم فقط إذا كان لمجموعة المستخدم سجل صريح بالحجب (Bit 1 = 0)
-        return $query->whereDoesntHave('permissions', function ($q) use ($usergroupId) {
-            $q->where('usergroupid', $usergroupId)
-                ->whereRaw('NOT (forumpermissions & 1)');
+        return $query->accessibleToGroup($usergroupId);
+    }
+
+    public function scopePubliclyAccessible($query)
+    {
+        $guestGroupId = (int) config('forum.guest_usergroup_id', 1);
+
+        return $query->accessibleToGroup($guestGroupId);
+    }
+
+    public function scopeAccessibleToGroup($query, int $usergroupId)
+    {
+        return $query->whereDoesntHave('permissions', function ($permissionQuery) use ($usergroupId) {
+            $permissionQuery->where('usergroupid', $usergroupId)
+                ->whereRaw('(forumpermissions & ?) = 0', [ForumPermission::CAN_VIEW]);
         });
     }
 

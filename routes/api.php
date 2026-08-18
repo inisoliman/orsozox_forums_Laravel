@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\ThreadApiController;
 use App\Http\Controllers\Api\PostApiController;
 use App\Http\Controllers\Api\AuthApiController;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Routing\Middleware\ThrottleRequests;
 
 /*
 |--------------------------------------------------------------------------
@@ -12,7 +13,8 @@ use Illuminate\Support\Facades\Route;
 */
 
 // تسجيل الدخول (بدون توثيق)
-Route::post('/login', [AuthApiController::class, 'login']);
+Route::post('/login', [AuthApiController::class, 'login'])
+    ->middleware(ThrottleRequests::class . ':10,1');
 
 // مسارات محمية بـ Sanctum
 Route::middleware('auth:sanctum')->group(function () {

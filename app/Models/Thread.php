@@ -7,7 +7,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Casts\Attribute;
-use Illuminate\Support\Facades\Cache;
 use App\Traits\HasSlug;
 
 class Thread extends Model
@@ -93,6 +92,13 @@ class Thread extends Model
     public function scopeVisible($query)
     {
         return $query->where('visible', 1);
+    }
+
+    public function scopePubliclyIndexable($query)
+    {
+        return $query->visible()->whereHas('forum', function ($forumQuery) {
+            $forumQuery->active()->publiclyAccessible();
+        });
     }
 
     /**

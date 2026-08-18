@@ -25,7 +25,13 @@ class BotTrafficProtectionMiddleware
             return $next($request);
         }
 
-        if ($this->isStaticAsset($request->path())) {
+        if ($this->isKnownProbe($request->path())) {
+            return response('', 404)
+                ->header('X-Forum-Firewall', 'known_probe')
+                ->header('X-Robots-Tag', 'noindex, nofollow');
+        }
+
+        if ($this->isStaticAsset($request->path()) || $this->isPublicSeoAsset($request->path())) {
             return $next($request);
         }
 
@@ -46,5 +52,22 @@ class BotTrafficProtectionMiddleware
     private function isStaticAsset(string $path): bool
     {
         return (bool) preg_match('/\.(?:css|js|jpg|jpeg|png|gif|webp|svg|ico|woff2?|ttf|eot|map)$/i', $path);
+    }
+
+    private function isPublicSeoAsset(string $path): bool
+    {
+        $normalizedPath = '/' . ltrim($path, '/');
+
+        return $normalizedPath === '/sitemap.xml'
+            || $normalizedPath === '/sitemap-forums.xml'
+            || (bool) preg_match('#^/sitemap-threads-[0-9]+\\.xml$#', $normalizedPath);
+    }
+
+    private function isKnownProbe(string $path): bool
+    {
+        return (bool) preg_match(
+            '#(?:^|/)(?:wp-login\\.php|wp-cron\\.php|xmlrpc\\.php|\\.env|\\.git(?:/|$)|cdn-cgi/|cgi-bin/)#i',
+            '/' . ltrim($path, '/')
+        );
     }
 }

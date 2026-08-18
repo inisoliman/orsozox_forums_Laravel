@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Thread;
 use App\Models\ForumPermission;
 use Illuminate\Support\Facades\Cache;
@@ -76,7 +75,21 @@ class ThreadController extends Controller
 
         // توليد الـ SEO Object باستخدام الـ Service Layer
         $seoData = $seoService->generate($thread);
+        $canReply = $this->canReply($thread);
 
-        return view('thread.show', compact('thread', 'posts', 'nextThread', 'prevThread', 'seoData'));
+        return view('thread.show', compact('thread', 'posts', 'nextThread', 'prevThread', 'seoData', 'canReply'));
+    }
+
+    private function canReply(Thread $thread): bool
+    {
+        $user = auth()->user();
+        if (!$user || !$thread->forumid) {
+            return false;
+        }
+
+        $usergroupId = (int) $user->usergroupid;
+
+        return ($thread->open || $user->is_admin || $user->is_moderator)
+            && ForumPermission::canReply($thread->forumid, $usergroupId);
     }
 }

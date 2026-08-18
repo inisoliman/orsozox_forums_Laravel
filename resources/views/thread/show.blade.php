@@ -246,6 +246,28 @@
             </div>
         @endforeach
 
+        @auth
+            @if($canReply)
+                <section class="glass-panel mt-4 p-4" aria-labelledby="quick-reply-title">
+                    <h2 id="quick-reply-title" class="h5 fw-bold mb-3">
+                        <i class="fas fa-reply text-accent me-2"></i> الرد السريع
+                    </h2>
+                    <form method="POST" action="{{ route('thread.reply', $thread->threadid) }}">
+                        @csrf
+                        <label class="form-label" for="quick-reply-content">محتوى الرد</label>
+                        <textarea id="quick-reply-content" name="pagetext" class="form-control" rows="6"
+                            maxlength="{{ config('security.firewall.quick_reply_max_chars', 10000) }}" required>{{ old('pagetext') }}</textarea>
+                        @error('pagetext')
+                            <div class="text-danger small mt-2">{{ $message }}</div>
+                        @enderror
+                        <button type="submit" class="btn btn-primary mt-3">
+                            <i class="fas fa-paper-plane me-1"></i> إرسال الرد
+                        </button>
+                    </form>
+                </section>
+            @endif
+        @endauth
+
         {{-- /////////// In-Article Ad Slot (After First Post) /////////// --}}
         @php
             $currentForumId = $thread->forumid ?? null;

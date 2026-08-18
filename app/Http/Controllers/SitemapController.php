@@ -22,11 +22,11 @@ class SitemapController extends Controller
     public function index()
     {
         $xml = Cache::remember('sitemap_index_xml', self::CACHE_TTL, function () {
-            $threadCount = (int) Thread::visible()->count();
+            $threadCount = (int) Thread::publiclyIndexable()->count();
             $pages = max(1, (int) ceil($threadCount / self::PER_PAGE));
 
             // lastmod حقيقي = آخر موضوع تم تعديله/الرد عليه
-            $latestLastpost = (int) Thread::visible()->max('lastpost');
+            $latestLastpost = (int) Thread::publiclyIndexable()->max('lastpost');
             $globalLastmod = $latestLastpost > 0
                 ? Carbon::createFromTimestamp($latestLastpost)->toW3cString()
                 : now()->toW3cString();
@@ -42,11 +42,10 @@ class SitemapController extends Controller
 
             // Sitemap المواضيع (بصفحات) — lastmod لكل صفحة = أحدث lastpost داخلها
             for ($i = 1; $i <= $pages; $i++) {
-                $pageLastpost = (int) Thread::visible()
+                $pageLastpost = (int) Thread::publiclyIndexable()
                     ->orderBy('lastpost', 'desc')
                     ->offset(($i - 1) * self::PER_PAGE)
-                    ->limit(self::PER_PAGE)
-                    ->max('lastpost');
+                    ->value('lastpost');
 
                 $pageLastmod = $pageLastpost > 0
                     ? Carbon::createFromTimestamp($pageLastpost)->toW3cString()
@@ -77,7 +76,7 @@ class SitemapController extends Controller
     {
         $xml = Cache::remember('sitemap_forums_xml', self::CACHE_TTL, function () {
             // lastmod ديناميكي = آخر نشاط فعلي على المنتدى
-            $latestLastpost = (int) Thread::visible()->max('lastpost');
+            $latestLastpost = (int) Thread::publiclyIndexable()->max('lastpost');
             $globalLastmod = $latestLastpost > 0
                 ? Carbon::createFromTimestamp($latestLastpost)->toW3cString()
                 : now()->startOfDay()->toW3cString();
@@ -98,9 +97,11 @@ class SitemapController extends Controller
             $xml .= $this->urlTag(route('page.contact'), $staticLastmod, 'monthly', '0.5');
 
             // الأقسام — lastmod = آخر نشاط داخل القسم
-            $forums = Forum::active()->get(['forumid', 'title', 'parentid', 'options']);
+            $forums = Forum::active()
+                ->publiclyAccessible()
+                ->get(['forumid', 'title', 'parentid', 'options']);
             foreach ($forums as $forum) {
-                $forumLastpost = (int) Thread::visible()
+                $forumLastpost = (int) Thread::publiclyIndexable()
                     ->where('forumid', $forum->forumid)
                     ->max('lastpost');
 
@@ -136,8 +137,9 @@ class SitemapController extends Controller
 
             // ⚠️ الترتيب بـ lastpost (آخر نشاط) وليس dateline (تاريخ الإنشاء)
             // هذا يضمن أن المواضيع المعدّلة من قاعدة البيانات تظهر في أعلى الـ sitemap
-            $threads = Thread::visible()
+            $threads = Thread::publiclyIndexable()
                 ->orderBy('lastpost', 'desc')
+                ->orderBy('threadid', 'desc')
                 ->offset(($page - 1) * $perPage)
                 ->limit($perPage)
                 ->get(['threadid', 'title', 'lastpost', 'forumid', 'postuserid']);
@@ -236,5 +238,6 @@ class SitemapController extends Controller
         // أرشيف - أكثر من سنتين
         return ['yearly', '0.3'];
     }
+
 }
 

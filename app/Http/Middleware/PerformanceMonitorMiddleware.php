@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\ClientIpResolver;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +14,10 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class PerformanceMonitorMiddleware
 {
+    public function __construct(private readonly ClientIpResolver $clientIpResolver)
+    {
+    }
+
     public function handle(Request $request, Closure $next): Response
     {
         $startedAt = microtime(true);
@@ -26,7 +31,7 @@ class PerformanceMonitorMiddleware
                 'method' => $request->method(),
                 'url' => $request->fullUrl(),
                 'status' => $response->getStatusCode(),
-                'ip' => $request->ip(),
+                'ip' => $this->clientIpResolver->resolve($request),
                 'user_agent' => substr($request->userAgent() ?? '', 0, 180),
                 'memory_mb' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
             ]);

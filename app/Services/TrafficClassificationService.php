@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Cache;
 
 class TrafficClassificationService
 {
+    public function __construct(private readonly ClientIpResolver $clientIpResolver)
+    {
+    }
+
     /** @var array<string, string[]> */
     private array $verifiedSearchEngines = [
         'google' => ['Googlebot', 'Google-InspectionTool', 'GoogleOther', 'Googlebot-Image'],
@@ -40,7 +44,7 @@ class TrafficClassificationService
         foreach ($this->verifiedSearchEngines as $engine => $needles) {
             foreach ($needles as $needle) {
                 if (stripos($ua, $needle) !== false) {
-                    $verified = $this->verifySearchEngineIp($request->ip() ?? '', $engine);
+                    $verified = $this->verifySearchEngineIp($this->clientIpResolver->resolve($request), $engine);
 
                     return [
                         'class' => $verified ? 'verified_search_engine' : 'fake_search_engine',

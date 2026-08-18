@@ -10,57 +10,53 @@
  * @author   Taylor Otwell <taylor@laravel.com>
  */
 
-$uri = urldecode(
-    parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)
-);
-
-// Remove the subdirectory prefix to get the relative path
+$requestPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$requestPath = rawurldecode($requestPath);
 $basePath = '/forums';
-$relativePath = $uri;
-if (str_starts_with($uri, $basePath)) {
-    $relativePath = substr($uri, strlen($basePath));
-}
-if (empty($relativePath)) {
-    $relativePath = '/';
+
+if ($requestPath === $basePath) {
+    $relativePath = '';
+} elseif (str_starts_with($requestPath, $basePath . '/')) {
+    $relativePath = ltrim(substr($requestPath, strlen($basePath)), '/');
+} else {
+    $relativePath = ltrim($requestPath, '/');
 }
 
-// If the file exists in public/ directory, serve it directly
-if ($relativePath !== '/' && file_exists(__DIR__ . '/public' . $relativePath)) {
-    // For PHP files, include them
-    if (str_ends_with($relativePath, '.php')) {
-        require_once __DIR__ . '/public' . $relativePath;
+$publicRoot = realpath(__DIR__ . DIRECTORY_SEPARATOR . 'public');
+$candidatePath = $publicRoot === false
+    ? false
+    : realpath($publicRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath));
+$allowedTypes = [
+    'css' => 'text/css; charset=UTF-8',
+    'gif' => 'image/gif',
+    'ico' => 'image/x-icon',
+    'jpeg' => 'image/jpeg',
+    'jpg' => 'image/jpeg',
+    'js' => 'application/javascript; charset=UTF-8',
+    'json' => 'application/json; charset=UTF-8',
+    'map' => 'application/json; charset=UTF-8',
+    'png' => 'image/png',
+    'svg' => 'image/svg+xml',
+    'ttf' => 'font/ttf',
+    'woff' => 'font/woff',
+    'woff2' => 'font/woff2',
+];
+
+header('X-Content-Type-Options: nosniff');
+
+if (
+    $publicRoot !== false
+    && $candidatePath !== false
+    && is_file($candidatePath)
+    && str_starts_with($candidatePath, $publicRoot . DIRECTORY_SEPARATOR)
+) {
+    $extension = strtolower(pathinfo($candidatePath, PATHINFO_EXTENSION));
+
+    if (isset($allowedTypes[$extension])) {
+        header('Content-Type: ' . $allowedTypes[$extension]);
+        readfile($candidatePath);
         return;
     }
-    // For static files, let the web server handle it by returning false
-    // But since we're in PHP, we need to serve the file ourselves
-    $mimeTypes = [
-        'css' => 'text/css',
-        'js' => 'application/javascript',
-        'json' => 'application/json',
-        'png' => 'image/png',
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'gif' => 'image/gif',
-        'svg' => 'image/svg+xml',
-        'ico' => 'image/x-icon',
-        'woff' => 'font/woff',
-        'woff2' => 'font/woff2',
-        'ttf' => 'font/ttf',
-        'eot' => 'application/vnd.ms-fontobject',
-        'map' => 'application/json',
-    ];
-
-    $ext = strtolower(pathinfo($relativePath, PATHINFO_EXTENSION));
-    if (isset($mimeTypes[$ext])) {
-        header('Content-Type: ' . $mimeTypes[$ext]);
-        readfile(__DIR__ . '/public' . $relativePath);
-        return;
-    }
-
-    // Unknown type, just serve it
-    readfile(__DIR__ . '/public' . $relativePath);
-    return;
 }
 
-// Otherwise, forward to Laravel's front controller
-require_once __DIR__ . '/public/index.php';
+require_once __DIR__ . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'index.php';
