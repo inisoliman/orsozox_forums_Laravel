@@ -293,33 +293,33 @@ document.addEventListener('DOMContentLoaded', function() {
     let debounceTimer = null;
     let currentRequest = null;
 
-    // AJAX Instant Search
+    /* AJAX Instant Search */
     searchInput.addEventListener('input', function() {
         const query = this.value.trim();
 
-        // Clear previous timer
+        /* Clear previous timer */
         if (debounceTimer) clearTimeout(debounceTimer);
 
-        // Hide suggestions if query is too short
+        /* Hide suggestions if query is too short */
         if (query.length < 3) {
             hideSuggestions();
             return;
         }
 
-        // Debounce 300ms
+        /* Debounce 300ms */
         debounceTimer = setTimeout(function() {
             fetchSuggestions(query);
         }, 300);
     });
 
-    // Hide suggestions on click outside
+    /* Hide suggestions on click outside */
     document.addEventListener('click', function(e) {
         if (!searchInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
             hideSuggestions();
         }
     });
 
-    // Keyboard navigation
+    /* Keyboard navigation */
     searchInput.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             hideSuggestions();
@@ -327,10 +327,10 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function fetchSuggestions(query) {
-        // Abort previous request
+        /* Abort previous request */
         if (currentRequest) currentRequest.abort();
 
-        // Show loading
+        /* Show loading */
         suggestionsBox.style.display = 'block';
         suggestionsLoading.style.display = 'block';
         suggestionsList.innerHTML = '';
@@ -376,7 +376,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                 });
 
-                // Add "show all results" footer
+                /* Add "show all results" footer */
                 html += `
                     <div class="suggestion-footer">
                         <a href="{{ route('search') }}?q=${encodeURIComponent(query)}">

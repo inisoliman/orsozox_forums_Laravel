@@ -27,6 +27,10 @@
                     <form action="{{ route('login.submit') }}" method="POST">
                         @csrf
 
+                        @if(request()->has('redirect'))
+                            <input type="hidden" name="redirect" value="{{ request('redirect') }}">
+                        @endif
+
                         <div class="mb-3">
                             <label for="username" class="form-label text-muted-custom small fw-bold">
                                 <i class="fas fa-user me-1"></i> اسم المستخدم

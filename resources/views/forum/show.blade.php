@@ -82,6 +82,14 @@
             <h2>المواضيع</h2>
             {{-- simplePaginate is used to avoid COUNT(*) on large forums under crawler load. --}}
             <span class="text-muted-custom" style="font-size:0.85rem">{{ number_format($forum->threadcount ?? $threads->count()) }} موضوع</span>
+            @auth
+                @if(\App\Models\ForumPermission::canPostNew($forum->forumid, (int) auth()->user()->usergroupid))
+                    <a href="{{ route('thread.create', ['forum' => $forum->forumid]) }}"
+                        class="btn btn-accent btn-sm rounded-pill px-3 ms-auto">
+                        <i class="fas fa-plus me-1"></i> موضوع جديد
+                    </a>
+                @endif
+            @endauth
         </div>
 
         @forelse($threads as $thread)

@@ -2,14 +2,171 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Thread;
+use App\Helpers\HtmlSanitizer;
+use App\Models\Forum;
 use App\Models\ForumPermission;
+use App\Models\Post;
+use App\Models\Thread;
+use App\Services\LocalAI\SpamShieldService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class ThreadController extends Controller
 {
+    public function __construct(private readonly SpamShieldService $spamShield)
+    {
+    }
+
+    /**
+     * عرض نموذج إنشاء موضوع جديد (بالمحرر واختيار القسم)
+     */
+    public function create(Request $request)
+    {
+        $usergroupId = (int) auth()->user()->usergroupid;
+
+        // الأقسام التي يملك المستخدم ترخيص الإنشاء فيها (حسب مجموعته)
+        $allowedForums = Forum::active()
+            ->ordered()
+            ->get()
+            ->filter(fn(Forum $forum) => ForumPermission::canPostNew($forum->forumid, $usergroupId))
+            ->values();
+
+        if ($allowedForums->isEmpty()) {
+            return response()->view('errors.forbidden', [
+                'title' => 'لا يمكنك إنشاء مواضيع',
+                'message' => 'لا تملك صلاحية إنشاء مواضيع في أي قسم حالياً. يرجى التواصل مع الإدارة.',
+            ]);
+        }
+
+        $selectedForumId = (int) $request->query('forum', $allowedForums->first()->forumid);
+
+        return view('thread.create', compact('allowedForums', 'selectedForumId'));
+    }
+
+    /**
+     * حفظ موضوع جديد مع أول مشاركة
+     */
+    public function store(Request $request)
+    {
+        $user = $request->user();
+        $usergroupId = (int) $user->usergroupid;
+
+        $validated = $request->validate([
+            'forumid' => ['required', 'integer'],
+            'title' => ['required', 'string', 'min:5', 'max:150'],
+            'content' => ['required', 'string'],
+        ], [
+            'forumid.required' => 'اختر القسم.',
+            'title.required' => 'عنوان الموضوع مطلوب.',
+            'title.min' => 'عنوان الموضوع قصير جداً — 5 أحرف على الأقل.',
+            'title.max' => 'عنوان الموضوع طويل جداً — 150 حرفاً كحد أقصى.',
+            'content.required' => 'محتوى الموضوع مطلوب.',
+        ]);
+
+        $forum = Forum::active()->find($request->integer('forumid'));
+        if (!$forum || !ForumPermission::canPostNew($forum->forumid, $usergroupId)) {
+            return back()->withErrors(['forumid' => 'القسم غير موجود أو لا تملك صلاحية الإنشاء فيه.'])
+                ->withInput($request->only('title', 'forumid'));
+        }
+
+        $title = trim($validated['title']);
+        $content = HtmlSanitizer::clean($validated['content']);
+
+        // فحص الحدود (نفس منطق الرد السريع)
+        $minChars = (int) config('security.firewall.quick_reply_min_chars', 10);
+        $maxChars = (int) config('security.firewall.quick_reply_max_chars', 10000);
+        $length = $this->plainTextLength($content);
+
+        if ($length === 0) {
+            return back()->withErrors(['content' => 'محتوى الموضوع مطلوب.'])
+                ->withInput($request->only('title', 'forumid'));
+        }
+        if ($length < $minChars) {
+            return back()->withErrors(['content' => 'المحتوى قصير جداً — الحد الأدنى ' . $minChars . ' أحرف.'])
+                ->withInput($request->only('title', 'forumid'));
+        }
+        if ($length > $maxChars) {
+            return back()->withErrors(['content' => 'حجم المحتوى يتجاوز الحد المسموح به (' . $maxChars . ' أحرف).'])
+                ->withInput($request->only('title', 'forumid'));
+        }
+
+        // فحص تكرار العنوان في نفس القسم
+        $duplicate = Thread::where('forumid', $forum->forumid)
+            ->where('title', $title)
+            ->visible()
+            ->latest('threadid')
+            ->select('threadid', 'title')
+            ->first();
+
+        if ($duplicate) {
+            return back()->withErrors([
+                'title' => 'يوجد موضوع بنفس العنوان في هذا القسم: "' . $duplicate->title . '". اختر عنواناً مختلفاً.',
+            ])->withInput($request->only('title', 'forumid'));
+        }
+
+        $spamScore = $this->spamShield->calculateSpamScore($title, $content);
+        $visible = $spamScore > 80 ? 0 : 1;
+
+        $thread = DB::transaction(function () use ($forum, $user, $title, $content, $visible) {
+            $now = time();
+
+            $thread = Thread::create([
+                'title' => $title,
+                'forumid' => $forum->forumid,
+                'postusername' => $user->username,
+                'postuserid' => $user->userid,
+                'dateline' => $now,
+                'views' => 0,
+                'replycount' => 0,
+                'open' => 1,
+                'visible' => $visible,
+                'lastpost' => $now,
+                'lastposter' => $user->username,
+                'sticky' => 0,
+            ]);
+
+            $post = Post::create([
+                'threadid' => $thread->threadid,
+                'userid' => $user->userid,
+                'username' => $user->username,
+                'pagetext' => '<!-- HTML -->' . $content,
+                'dateline' => $now,
+                'visible' => $visible,
+                'title' => $title,
+            ]);
+
+            $thread->firstpostid = $post->postid;
+            $thread->save();
+
+            if ($visible) {
+                Forum::whereKey($forum->forumid)->increment('threadcount');
+                $user->increment('posts');
+            }
+
+            return $thread;
+        });
+
+        if ($visible) {
+            return redirect()->route('thread.show', ['id' => $thread->threadid, 'slug' => $thread->slug])
+                ->with('success', 'تم نشر الموضوع بنجاح!');
+        }
+
+        return redirect()->route('forum.show', ['id' => $forum->forumid, 'slug' => $forum->slug])
+            ->with('success', 'تم استلام الموضوع وسيظهر بعد المراجعة.');
+    }
+
+    private function plainTextLength(string $content): int
+    {
+        $text = strip_tags($content);
+        $text = html_entity_decode($text, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        $text = str_replace(["\r", "\n", "\t"], ' ', $text);
+        $text = preg_replace('/\s+/u', ' ', $text);
+
+        return mb_strlen(trim($text), 'UTF-8');
+    }
+
     /**
      * عرض الموضوع مع جميع الردود
      */

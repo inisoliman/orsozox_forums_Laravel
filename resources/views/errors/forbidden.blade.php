@@ -25,7 +25,7 @@
             {{-- Actions --}}
             <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
                 @guest
-                    <a href="{{ route('login') }}" class="btn-accent"
+                    <a href="{{ route('login', ['redirect' => request()->fullUrl()]) }}" class="btn-accent"
                         style="padding:0.7rem 2rem;border-radius:8px;text-decoration:none;">
                         <i class="bi bi-box-arrow-in-left ms-1"></i> تسجيل الدخول
                     </a>

@@ -26,7 +26,25 @@ class Thread extends Model
         'open',
         'visible',
         'lastpost',
+        'lastposter',
         'sticky',
+    ];
+
+    // قيم افتراضية لأعمدة جدول thread الفعلية (نوعها كما في SHOW COLUMNS).
+    // أعمدة NOT NULL بلا DEFAULT في القاعدة المهاجَرة (prefixid, lastposter,
+    // similar, notes) يجب ضبطها صراحة عند كل INSERT.
+    protected $attributes = [
+        'firstpostid' => 0,
+        'lastpostid' => 0,
+        'pollid' => 0,
+        'iconid' => 0,
+        'prefixid' => '',
+        'lastposter' => '',
+        'votenum' => 0,
+        'votetotal' => 0,
+        'attach' => 0,
+        'similar' => '',
+        'notes' => '',
     ];
 
     protected $casts = [
@@ -34,7 +52,6 @@ class Thread extends Model
         'forumid' => 'integer',
         'postuserid' => 'integer',
         'firstpostid' => 'integer',
-        'lastposterid' => 'integer',
         'replycount' => 'integer',
         'views' => 'integer',
         'open' => 'integer',

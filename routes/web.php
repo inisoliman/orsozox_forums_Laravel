@@ -55,7 +55,20 @@ Route::post('/contact', [PageController::class, 'submitContact'])
 Route::get('/forum/{id}/{slug?}', [ForumController::class, 'show'])->name('forum.show')->where('id', '[0-9]+');
 
 // المواضيع
+// ملاحظة: يجب تسجيل /thread/{id}/posts-fragment قبل /thread/{id}/{slug?}
+// حتى لا يعترض مسار slug العمومي (يعمل كمطابق عام) على طلبات جزء الردود
+Route::get('/thread/{id}/posts-fragment', [\App\Http\Controllers\ThreadController::class, 'postsFragment'])
+    ->name('thread.posts-fragment')
+    ->middleware(['auth', ThrottleRequests::class . ':30,1'])
+    ->where('id', '[0-9]+');
+
 Route::get('/thread/{id}/{slug?}', [ThreadController::class, 'show'])->name('thread.show')->where('id', '[0-9]+');
+
+// إنشاء موضوع جديد (واجهة أمامية)
+Route::get('/thread/new', [ThreadController::class, 'create'])->name('thread.create')->middleware('auth');
+Route::post('/thread/new', [ThreadController::class, 'store'])
+    ->name('thread.store')
+    ->middleware(['auth', ThrottleRequests::class . ':5,10']);
 
 // الأعضاء
 Route::get('/user/{id}', [UserController::class, 'show'])->name('user.show')->where('id', '[0-9]+');
@@ -105,13 +118,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/post/{id}/ajax/edit', [\App\Http\Controllers\Api\PostEditController::class, 'update'])
         ->name('post.ajax.edit')
         ->middleware(ThrottleRequests::class . ':30,1');
-    Route::post('/thread/{id}/reply', [\App\Http\Controllers\ReplyController::class, 'store'])
+Route::post('/thread/{id}/reply', [\App\Http\Controllers\ReplyController::class, 'store'])
         ->name('thread.reply')
         ->middleware(ThrottleRequests::class . ':10,1');
-    // جلب جزء الردود (صفحة محددة) كـ HTML — يُستخدم بعد الرد السريع عبر AJAX
-    Route::get('/thread/{id}/posts-fragment', [\App\Http\Controllers\ThreadController::class, 'postsFragment'])
-        ->name('thread.posts-fragment')
-        ->middleware(ThrottleRequests::class . ':30,1');
     // جلب الكود الأصلي (BBCode) من قاعدة البيانات
     Route::get('/post/{id}/ajax/raw', [\App\Http\Controllers\Api\PostEditController::class, 'getRaw'])->name('post.ajax.raw');
     // رفع الصور من داخل المحرر (ملف + رابط)

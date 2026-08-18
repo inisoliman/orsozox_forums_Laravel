@@ -179,7 +179,7 @@
                                     return;
                                 }
 
-                                // إضافة علامة تحميل مؤقتة
+                                /* إضافة علامة تحميل مؤقتة */
                                 suggestions.innerHTML = '<div class="p-3 text-center text-muted"><i class="fas fa-spinner fa-spin"></i> جاري البحث...</div>';
                                 suggestions.classList.remove('d-none');
 
@@ -218,17 +218,17 @@
                                             console.error('Search error:', err);
                                             suggestions.innerHTML = '<div class="p-3 text-muted small text-center">حدث خطأ في الاتصال. اضغط Enter للبحث الشامل.</div>';
                                         });
-                                }, 400); // 400ms debounce
+                                }, 400); /* 400ms debounce */
                             });
 
-                            // Hide dropdown when clicking outside
+                            /* Hide dropdown when clicking outside */
                             document.addEventListener('click', function (e) {
                                 if (!input.contains(e.target) && !suggestions.contains(e.target)) {
                                     suggestions.classList.add('d-none');
                                 }
                             });
 
-                            // Show dropdown again when clicking on input if it has value
+                            /* Show dropdown again when clicking on input if it has value */
                             input.addEventListener('focus', function () {
                                 if (this.value.trim().length >= 3 && suggestions.innerHTML.trim() !== '') {
                                     suggestions.classList.remove('d-none');

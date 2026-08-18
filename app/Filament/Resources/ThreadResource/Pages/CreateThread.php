@@ -57,7 +57,6 @@ class CreateThread extends CreateRecord
         // Update the thread with the created post IDs
         $thread->firstpostid = $post->postid;
         $thread->lastpost = time();
-        $thread->lastposterid = $post->userid;
         $thread->save();
     }
 }

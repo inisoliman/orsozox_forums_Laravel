@@ -437,7 +437,7 @@
 
                 /* جلب جزء الردود لصفحة معينة واستبدال القائمة الحالية */
                 const fetchFragment = async function (page) {
-                    const response = await fetch('{{ route('thread.posts-fragment', $thread->threadid) }}' + '?page=' + page, {
+                    const response = await fetch('{{ route('thread.posts-fragment', $thread->threadid) }}' + '?page=' + page + '&_=' + Date.now(), {
                         headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken() }
                     });
                     if (!response.ok) throw new Error('فشل جلب الردود.');

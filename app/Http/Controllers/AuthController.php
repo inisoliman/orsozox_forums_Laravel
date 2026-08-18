@@ -10,12 +10,32 @@ class AuthController extends Controller
     /**
      * عرض صفحة تسجيل الدخول
      */
-    public function showLogin()
+    public function showLogin(Request $request)
     {
         if (Auth::check()) {
             return redirect()->route('home');
         }
+
+        // حفظ آخر مكان أراد المستخدم العودة إليه بعد الدخول (مع التحقق من كونه رابطاً محلياً)
+        $redirect = $request->input('redirect');
+        if ($redirect && $this->isSafeLocalUrl($redirect)) {
+            $request->session()->put('url.intended', $redirect);
+        }
+
         return view('auth.login');
+    }
+
+    /**
+     * التحقق من أن رابط العودة محلي (نفس النطاق) لمنع فتح redirect خارجي.
+     */
+    private function isSafeLocalUrl(string $url): bool
+    {
+        $parsed = parse_url($url);
+        if (!$parsed || !in_array($parsed['scheme'] ?? '', ['http', 'https'], true)) {
+            return false;
+        }
+
+        return ($parsed['host'] ?? '') === request()->getHost();
     }
 
     /**
@@ -52,6 +72,13 @@ class AuthController extends Controller
         if ($user && $user->verifyPassword($credentials['password'])) {
             Auth::login($user);
             $request->session()->regenerate();
+
+            // إن كان الرابط يحمل معامل redirect (من زر دخول في أي صفحة) فاحفظه ليعود إليه بعد الدخول
+            $redirect = $request->input('redirect');
+            if ($redirect && $this->isSafeLocalUrl($redirect)) {
+                $request->session()->put('url.intended', $redirect);
+            }
+
             return redirect()->intended(route('home'))
                 ->with('success', 'تم تسجيل الدخول بنجاح! مرحباً ' . $user->username);
         }

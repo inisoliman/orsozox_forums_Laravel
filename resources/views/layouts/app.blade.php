@@ -192,8 +192,8 @@
                         </ul>
                     </div>
                 @else
-                    <a href="{{ route('login') }}"
-                        class="btn btn-outline-primary rounded-pill btn-sm px-3 ms-2 d-none d-md-block">دخول</a>
+                    <a href="{{ route('login', ['redirect' => request()->fullUrl()]) }}"
+                        class="btn btn-outline-primary rounded-pill btn-sm px-3 ms-2">دخول</a>
                     <a href="{{ route('register') }}"
                         class="btn btn-primary rounded-pill btn-sm px-3 d-none d-md-block">تسجيل</a>
                 @endauth
