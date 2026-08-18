@@ -9,16 +9,18 @@ use App\Models\Post;
 use App\Models\Thread;
 use App\Models\User;
 use App\Services\LocalAI\SpamShieldService;
-use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 
 class ReplyController extends Controller
 {
+    private const POSTS_PER_PAGE = 15;
+
     public function __construct(private readonly SpamShieldService $spamShield)
     {
     }
 
-    public function store(PostReplyRequest $request, int $id): RedirectResponse
+    public function store(PostReplyRequest $request, int $id)
     {
         $thread = Thread::visible()->findOrFail($id);
         $user = $request->user();
@@ -30,8 +32,51 @@ class ReplyController extends Controller
         $spamScore = $this->spamShield->calculateSpamScore($thread->title, $content);
         $post = $this->createReply($thread, $user, $content, $spamScore);
 
+        if ($request->wantsJson()) {
+            return $this->jsonResponse($thread, $post);
+        }
+
         return redirect()->to($thread->url . '#post-' . $post->postid)
             ->with('success', $post->visible ? 'تمت إضافة الرد.' : 'تم استلام الرد وسيظهر بعد المراجعة.');
+    }
+
+    private function jsonResponse(Thread $thread, Post $post): JsonResponse
+    {
+        $post->load(['author', 'attachments']);
+
+        $totalVisible = $thread->posts()->visible()->count();
+        $lastPage = (int) max(1, ceil($totalVisible / self::POSTS_PER_PAGE));
+        $thisPage = (int) max(1, ceil($this->countVisibleUpTo($thread, $post->dateline) / self::POSTS_PER_PAGE));
+
+        $postHtml = view('thread.partials.post', [
+            'post' => $post,
+            'thread' => $thread,
+            'postNumber' => $this->countVisibleUpTo($thread, $post->dateline),
+            'isFirst' => false,
+        ])->render();
+
+        $targetUrl = $thread->url . ($thisPage > 1 ? '?page=' . $thisPage : '') . '#post-' . $post->postid;
+
+        return response()->json([
+            'success' => true,
+            'visible' => (bool) $post->visible,
+            'message' => $post->visible ? 'تمت إضافة الرد.' : 'تم استلام الرد وسيظهر بعد المراجعة.',
+            'post' => [
+                'postid' => $post->postid,
+            ],
+            'html' => $postHtml,
+            'url' => $targetUrl,
+            'post_page' => $thisPage,
+            'last_page' => $post->visible ? $lastPage : $thisPage,
+        ]);
+    }
+
+    private function countVisibleUpTo(Thread $thread, int $dateline): int
+    {
+        return (int) $thread->posts()
+            ->visible()
+            ->where('dateline', '<=', $dateline)
+            ->count();
     }
 
     private function createReply(Thread $thread, User $user, string $content, int $spamScore): Post

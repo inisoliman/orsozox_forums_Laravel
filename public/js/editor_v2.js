@@ -505,5 +505,32 @@ window.AppEditor = (function () {
         setTimeout(() => { if (toastEl.parentNode) toastEl.remove(); }, 4000);
     }
 
-    return { startPostEdit, startThreadEdit };
+    /**
+     * تهيئة محرر الرد السريع على عنصر معيّن.
+     * يُخفي حقل النص الاحتياطي ويُظهر حاوية المحرر عند نجاح التهيئة.
+     * يعيد وعداً بالـ editor أو null إذا فشل التحميل (فيبقى الحقل النصي).
+     */
+    async function initQuickReply(targetId, textareaId, uploadUrl) {
+        const target = document.getElementById(targetId);
+        const textarea = document.getElementById(textareaId);
+        if (!target) return null;
+
+        // إظهار الحاوية قبل التهيئة حتى يحسب CKEditor أبعاد المحرر بشكل صحيح
+        target.classList.remove('d-none');
+
+        try {
+            const editor = await initEditor(target, uploadUrl);
+            // إخفاء حقل النص الاحتياطي بعد نجاح التهيئة
+            if (textarea) textarea.classList.add('d-none');
+            return editor;
+        } catch (error) {
+            console.error('Quick reply editor init error:', error);
+            // في حال الفشل يبقى الحقل النصي الاحتياطي ظاهراً
+            target.classList.add('d-none');
+            if (textarea) textarea.classList.remove('d-none');
+            return null;
+        }
+    }
+
+    return { startPostEdit, startThreadEdit, initQuickReply, showToast };
 })();

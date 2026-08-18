@@ -135,116 +135,16 @@
         </div>
 
         {{-- Posts / الردود --}}
+        <div id="posts-list" data-page="{{ $posts->currentPage() }}">
         @foreach($posts as $index => $post)
-            <div class="post-card animate-in {{ $loop->first && $posts->currentPage() == 1 ? 'first-post' : '' }}"
-                id="post-{{ $post->postid }}">
-                <div class="post-header">
-                    <div class="post-avatar">
-                        {{ mb_substr($post->author->username ?? $post->username ?? '?', 0, 1) }}
-                    </div>
-                    <div class="post-author-info">
-                        <a href="{{ route('user.show', $post->userid) }}" class="post-author-name">
-                            {{ $post->author->username ?? $post->username ?? 'زائر' }}
-                        </a>
-                        <div class="post-date">
-                            <i class="fas fa-clock"></i>
-                            {{ $post->created_date->format('Y/m/d - h:i A') }}
-                            · {{ $post->created_date->diffForHumans() }}
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        @auth
-                            @can('update', $post)
-                                <button class="btn btn-sm btn-outline-accent" title="تعديل الرد"
-                                    onclick="if(window.AppEditor){window.AppEditor.startPostEdit('{{ $post->postid }}','{{ url('/post') }}/{{ $post->postid }}/ajax/edit',window._editorUploadUrl);}else{alert('المحرر غير جاهز');}">
-                                    <i class="fas fa-edit"></i> تعديل
-                                </button>
-                            @endcan
-                        @endauth
-                        <a href="{{ route('post.show', $post->postid) }}" class="post-number" title="رابط مباشر للمشاركة — انقر للنسخ">
-                            #{{ ($posts->currentPage() - 1) * $posts->perPage() + $index + 1 }}
-                        </a>
-                    </div>
-                </div>
-                <div class="post-content">
-                    <div class="post-content-body" id="post-content-{{ $post->postid }}">
-                        {!! $post->parsed_content !!}
-                    </div>
-
-                    {{-- المرفقات --}}
-                    @if($post->attachments->count())
-                        <div class="mt-3 pt-3" style="border-top:1px solid var(--border-color)">
-                            <small class="text-muted-custom d-block mb-2"><i class="fas fa-paperclip"></i> المرفقات
-                                ({{ $post->attachments->count() }})</small>
-                            <div class="d-flex flex-wrap gap-2">
-                                @foreach($post->attachments as $attachment)
-                                    @if($attachment->is_image)
-                                        {{-- Automatic WebP Conversion Output (Fallback Support) --}}
-                                        @php
-                                            $originalSrc = asset('attachments/' . $attachment->attachmentid . '.' . $attachment->extension);
-                                            $webpSrc = \App\Helpers\WebpHelper::convertAndGet($originalSrc);
-                                        @endphp
-                                        <picture>
-                                            <source srcset="{{ $webpSrc }}" type="image/webp">
-                                            <img src="{{ $originalSrc }}" alt="مرفق {{ $attachment->filename }}"
-                                                class="img-fluid rounded shadow-sm border" style="max-width:200px;max-height:150px"
-                                                loading="lazy">
-                                        </picture>
-                                    @else
-                                        <span class="badge badge-modern" style="background:var(--bg-primary);color:var(--text-main)">
-                                            <i class="fas fa-file-alt"></i> {{ $attachment->filename }}
-                                        </span>
-                                    @endif
-                                @endforeach
-                            </div>
-                        </div>
-                    @endif
-
-                    {{-- E-E-A-T: Author Credibility Block (First Post Only) --}}
-                    @if($loop->first && $posts->currentPage() == 1)
-                        <div class="author-credibility-block mt-5 p-4 rounded-4"
-                            style="background: rgba(var(--bg-panel-rgb), 0.5); border: 1px solid var(--border-color); border-right: 4px solid var(--accent-color);">
-                            <h4 class="h5 fw-bold mb-3"><i class="fas fa-user-shield text-accent me-2"></i> بطاقة الكاتب الموثوق
-                            </h4>
-                            <div class="d-flex align-items-center gap-3">
-                                <div class="rounded-circle d-flex justify-content-center align-items-center fs-3 fw-bold shadow-sm"
-                                    style="width: 60px; height: 60px; background: var(--bg-primary); color: var(--text-main);">
-                                    {{ mb_substr($thread->author->username ?? $thread->postusername ?? 'ز', 0, 1) }}
-                                </div>
-                                <div>
-                                    <h5 class="mb-1">
-                                        <a href="{{ route('user.show', $thread->postuserid) }}"
-                                            class="text-accent fw-bold text-decoration-none">
-                                            {{ $thread->author->username ?? $thread->postusername ?? 'زائر' }}
-                                        </a>
-                                    </h5>
-                                    <div class="text-muted-custom small d-flex gap-3 flex-wrap mt-1">
-                                        @if($thread->author)
-                                            <span><i class="fas fa-calendar-check text-success"></i> مسجل منذ:
-                                                {{ $thread->author->join_date_formatted->format('Y') }}</span>
-                                            <span><i class="fas fa-pen-nib text-primary"></i> مساهمات:
-                                                {{ number_format($thread->author->posts) }}</span>
-                                            <span><i
-                                                    class="fas fa-id-badge {{ $thread->author->is_admin || $thread->author->is_moderator ? 'text-warning' : 'text-secondary' }}"></i>
-                                                الصفة: {{ $thread->author->usertitle ?: 'عضو مجتمع' }}</span>
-                                        @else
-                                            <span><i class="fas fa-user-clock text-secondary"></i> كاتب غير مسجل</span>
-                                        @endif
-                                    </div>
-                                </div>
-                            </div>
-                            <hr class="my-3" style="border-color: var(--border-color)">
-                            <div class="editorial-review-info small text-muted-custom">
-                                <i class="fas fa-check-circle text-success me-1"></i> يتوافق هذا المحتوى مع معايير الموثوقية والدقة.
-                                يرجى مراجعة <a href="{{ route('page.editorial') }}"
-                                    class="text-accent text-decoration-underline">سياسة التحرير والنشر</a> لمعرفة المزيد.
-                            </div>
-                        </div>
-                    @endif
-
-                </div>
-            </div>
+            @include('thread.partials.post', [
+                'post' => $post,
+                'thread' => $thread,
+                'postNumber' => ($posts->currentPage() - 1) * $posts->perPage() + $index + 1,
+                'isFirst' => $loop->first && $posts->currentPage() == 1,
+            ])
         @endforeach
+        </div>
 
         @auth
             @if($canReply)
@@ -252,19 +152,26 @@
                     <h2 id="quick-reply-title" class="h5 fw-bold mb-3">
                         <i class="fas fa-reply text-accent me-2"></i> الرد السريع
                     </h2>
-                    <form method="POST" action="{{ route('thread.reply', $thread->threadid) }}">
+                    <form method="POST" action="{{ route('thread.reply', $thread->threadid) }}"
+                        id="quick-reply-form" novalidate>
                         @csrf
                         <label class="form-label" for="quick-reply-content">محتوى الرد</label>
+                        {{-- حاوية CKEditor: تُظهِر وتُستبدل بحقل المحرر عبر JavaScript عند التهيئة --}}
+                        <div id="quick-reply-editor" class="editor-wrapper d-none"></div>
+                        {{-- الحقل الفعلي المرفوع مع النموذج (سيملؤه JS بمحتوى المحرر قبل الإرسال) --}}
                         <textarea id="quick-reply-content" name="pagetext" class="form-control" rows="6"
                             maxlength="{{ config('security.firewall.quick_reply_max_chars', 10000) }}" required>{{ old('pagetext') }}</textarea>
+                        <div id="quick-reply-error" class="text-danger small mt-2 d-none"></div>
                         @error('pagetext')
                             <div class="text-danger small mt-2">{{ $message }}</div>
                         @enderror
-                        <button type="submit" class="btn btn-primary mt-3">
+                        <button type="submit" id="quick-reply-submit" class="btn btn-primary mt-3">
                             <i class="fas fa-paper-plane me-1"></i> إرسال الرد
                         </button>
                     </form>
                 </section>
+
+
             @endif
         @endauth
 
@@ -432,10 +339,10 @@
             }
         </style>
         <script>
-            // Global upload URL for editor buttons
+            /* Global upload URL for editor buttons */
             window._editorUploadUrl = '{{ route('editor.upload') }}';
 
-            // Move & Delete handlers
+            /* Move & Delete handlers */
             (function() {
                 const doFetch = async (url, data) => {
                     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
@@ -485,6 +392,154 @@
                         }
                     });
                 }
+            })();
+        </script>
+
+        <script>
+            /* الرد السريع عبر AJAX + CKEditor */
+            (function () {
+                const form = document.getElementById('quick-reply-form');
+                if (!form) return;
+
+                const editorTargetId = 'quick-reply-editor';
+                const textareaId = 'quick-reply-content';
+                const errorBox = document.getElementById('quick-reply-error');
+                const submitBtn = document.getElementById('quick-reply-submit');
+                const postsList = document.getElementById('posts-list');
+
+                const csrfToken = function () {
+                    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+                };
+                const showError = function (msg) {
+                    if (errorBox) {
+                        errorBox.textContent = msg;
+                        errorBox.classList.remove('d-none');
+                    }
+                };
+                const hideError = function () {
+                    if (errorBox) errorBox.classList.add('d-none');
+                };
+                const setBtnBusy = function (busy) {
+                    if (!submitBtn) return;
+                    submitBtn.disabled = busy;
+                    submitBtn.innerHTML = busy
+                        ? 'جاري الإرسال... <i class="fas fa-spinner fa-spin ms-1"></i>'
+                        : '<i class="fas fa-paper-plane me-1"></i> إرسال الرد';
+                };
+
+                let quickEditor = null;
+
+                /* تهيئة المحرر (إن توفر) — يبقى النص الاحتياطي ظاهراً إذا فشل */
+                if (window.AppEditor && window.AppEditor.initQuickReply) {
+                    AppEditor.initQuickReply(editorTargetId, textareaId, window._editorUploadUrl || '')
+                        .then(function (ed) { quickEditor = ed; });
+                }
+
+                /* جلب جزء الردود لصفحة معينة واستبدال القائمة الحالية */
+                const fetchFragment = async function (page) {
+                    const response = await fetch('{{ route('thread.posts-fragment', $thread->threadid) }}' + '?page=' + page, {
+                        headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrfToken() }
+                    });
+                    if (!response.ok) throw new Error('فشل جلب الردود.');
+                    const data = await response.json();
+                    return data;
+                };
+
+                /* العملية بعد نجاح الرد: إما إدراج الرد في نفس الصفحة أو جلب صفحة أحدث */
+                const handleSuccess = async function (res) {
+                    const currentPage = parseInt(postsList.getAttribute('data-page') || '1', 10) || 1;
+
+                    if (!res.visible) {
+                        window.AppEditor && window.AppEditor.showToast('تم الاستلام', res.message, 'success');
+                        setTimeout(function () { window.location.href = res.url; }, 1200);
+                        return;
+                    }
+
+                    if (res.post_page === currentPage) {
+                        /* الرد في الصفحة الحالية — أدرجه مباشرة في نهاية القائمة */
+                        const temp = document.createElement('template');
+                        temp.innerHTML = res.html.trim();
+                        const node = temp.content.firstElementChild;
+                        if (node) postsList.appendChild(node);
+                        window.location.hash = 'post-' + res.post.postid;
+                    } else {
+                        /* الرد انتقل إلى صفحة أحدث — استبدل الردود بجزء تلك الصفحة */
+                        const frag = await fetchFragment(res.post_page);
+                        if (frag.success) {
+                            postsList.innerHTML = frag.html;
+                            postsList.setAttribute('data-page', String(frag.page));
+                            window.location.hash = 'post-' + res.post.postid;
+                        }
+                    }
+
+                    if (window.AppEditor && window.AppEditor.showToast) window.AppEditor.showToast('نجاح', res.message, 'success');
+
+                    /* تفريغ المحرر وحقل النص الاحتياطي بعد نجاح الإرسال */
+                    if (quickEditor) quickEditor.setData('');
+                    const ta = document.getElementById(textareaId);
+                    if (ta) ta.value = '';
+                };
+
+                form.addEventListener('submit', async function (event) {
+                    event.preventDefault();
+                    hideError();
+
+                    const textarea = document.getElementById(textareaId);
+                    let content = textarea ? textarea.value : '';
+                    if (quickEditor) {
+                        content = quickEditor.getData();
+                    }
+
+                    const plainContent = content.replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+                    if (!plainContent) {
+                        showError('محتوى الرد مطلوب.');
+                        return;
+                    }
+
+                    if (plainContent.length < {{ $minReplyChars ?? (int) config('security.firewall.quick_reply_min_chars', 10) }}) {
+                        showError('الرد قصير جداً — الحد الأدنى {{ $minReplyChars ?? (int) config('security.firewall.quick_reply_min_chars', 10) }} أحرف.');
+                        return;
+                    }
+
+                    const maxReplyChars = {{ $maxReplyChars ?? (int) config('security.firewall.quick_reply_max_chars', 10000) }};
+                    if (plainContent.length > maxReplyChars) {
+                        showError('حجم الرد يتجاوز الحد المسموح به (' + maxReplyChars + ' أحرف).');
+                        return;
+                    }
+
+                    setBtnBusy(true);
+                    try {
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken(),
+                                'Accept': 'application/json'
+                            },
+                            body: JSON.stringify({ pagetext: content })
+                        });
+
+                        let res;
+                        try {
+                            res = await response.json();
+                        } catch (e) {
+                            /* استجابة غير JSON — قد تكون إعادة توجيه CSRF/مهلة */
+                            window.location.href = form.action;
+                            return;
+                        }
+
+                        if (!response.ok) {
+                            showError(res.message || 'تعذر إرسال الرد.');
+                            return;
+                        }
+
+                        await handleSuccess(res);
+                    } catch (error) {
+                        showError('خطأ في الاتصال بالسيرفر.');
+                    } finally {
+                        setBtnBusy(false);
+                    }
+                });
             })();
         </script>
     @endauth

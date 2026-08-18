@@ -108,6 +108,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/thread/{id}/reply', [\App\Http\Controllers\ReplyController::class, 'store'])
         ->name('thread.reply')
         ->middleware(ThrottleRequests::class . ':10,1');
+    // جلب جزء الردود (صفحة محددة) كـ HTML — يُستخدم بعد الرد السريع عبر AJAX
+    Route::get('/thread/{id}/posts-fragment', [\App\Http\Controllers\ThreadController::class, 'postsFragment'])
+        ->name('thread.posts-fragment')
+        ->middleware(ThrottleRequests::class . ':30,1');
     // جلب الكود الأصلي (BBCode) من قاعدة البيانات
     Route::get('/post/{id}/ajax/raw', [\App\Http\Controllers\Api\PostEditController::class, 'getRaw'])->name('post.ajax.raw');
     // رفع الصور من داخل المحرر (ملف + رابط)

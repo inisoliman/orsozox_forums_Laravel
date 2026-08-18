@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\Thread;
 use App\Models\ForumPermission;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class ThreadController extends Controller
@@ -92,4 +94,47 @@ class ThreadController extends Controller
         return ($thread->open || $user->is_admin || $user->is_moderator)
             && ForumPermission::canReply($thread->forumid, $usergroupId);
     }
+
+    /**
+     * إرجاع جزء الردود (مستعمًى لصفحة معينة) كـ HTML.
+     * يُستخدم بعد إضافة رد عبر AJAX عندما يقع الرد في صفحة أحدث،
+     * ليأخذ المتصفح الردود الكاملة لتلك الصفحة بدون إعادة تحميل الصفحة.
+     */
+    public function postsFragment(Request $request, int $id): JsonResponse
+    {
+        $thread = Thread::with(['forum', 'author', 'firstPost.attachments'])->visible()->findOrFail($id);
+
+        $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
+        if ($thread->forumid && !ForumPermission::canView($thread->forumid, $usergroupId)) {
+            return response()->json(['success' => false, 'message' => 'غير مصرح.'], 403);
+        }
+
+        $page = $request->integer('page', 1);
+
+        $posts = $thread->posts()
+            ->visible()
+            ->chronological()
+            ->with(['author', 'attachments'])
+            ->simplePaginate(15, ['*'], 'page', max(1, $page));
+
+        $startNumber = ($posts->currentPage() - 1) * $posts->perPage() + 1;
+
+        $html = '';
+        foreach ($posts as $index => $post) {
+            $html .= view('thread.partials.post', [
+                'post' => $post,
+                'thread' => $thread,
+                'postNumber' => $startNumber + $index,
+                'isFirst' => $posts->currentPage() == 1 && $index === 0,
+            ])->render();
+        }
+
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'page' => $posts->currentPage(),
+            'has_more' => $posts->hasMorePages(),
+        ]);
+    }
+
 }
