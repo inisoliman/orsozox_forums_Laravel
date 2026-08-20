@@ -11,6 +11,9 @@
 @section('og_image', $seoData['image'])
 @section('og_image_width', '1200')
 @section('og_image_height', '630')
+@if((int) $thread->visible !== 1)
+    @section('robots', 'noindex, nofollow')
+@endif
 
 @push('head')
     <meta property="article:published_time" content="{{ $seoData['published_time'] }}">
@@ -62,6 +65,52 @@
                 </ol>
             </nav>
         </div>
+
+        {{-- شريط المراجعة — الموضوع قيد المراجعة (للمشرف أو صاحب الموضوع) --}}
+        @auth
+            @if((int) $thread->visible !== 1)
+                @php
+                    $isStaff = auth()->user()->is_admin || auth()->user()->is_moderator;
+                @endphp
+                <div class="glass-panel p-3 mb-4 border-warning border-opacity-50" style="background: rgba(255,179,0,.08)">
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <div class="d-flex align-items-center gap-2 me-auto">
+                            <i class="fas fa-hourglass-half text-warning fs-4"></i>
+                            <div>
+                                <div class="fw-bold text-warning">هذا الموضوع قيد المراجعة</div>
+                                <small class="text-muted-custom">
+                                    @if($isStaff)
+                                        راجع المحتوى ثم وافق على نشره أو ارفضه وحذفه.
+                                    @else
+                                        موضوعك قيد المراجعة — يمكنك تعديله قبل النشر، وسيظهر للجميع بعد الموافقة عليه.
+                                    @endif
+                                </small>
+                            </div>
+                        </div>
+                        @if($isStaff)
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-success btn-sm" data-moderate="thread-approve" data-id="{{ $thread->threadid }}" data-url="{{ route('moderation.thread.approve', $thread->threadid) }}"
+                                    data-redirect-on-success="{{ $thread->url }}">
+                                    <i class="fas fa-check me-1"></i> موافقة ونشر
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" data-moderate="thread-reject" data-id="{{ $thread->threadid }}" data-url="{{ route('moderation.thread.reject', $thread->threadid) }}"
+                                    data-redirect-on-success="{{ $thread->forum->url ?? route('home') }}"
+                                    data-redirect-on-error="{{ $thread->url }}">
+                                    <i class="fas fa-times me-1"></i> رفض وحذف
+                                </button>
+                            </div>
+                        @else
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-outline-accent btn-sm" type="button"
+                                    onclick="if(window.AppEditor){window.AppEditor.startThreadEdit('{{ $thread->threadid }}','{{ $thread->firstPost->postid ?? ($posts->isNotEmpty() ? $posts->first()->postid : '') }}','{{ url('/thread') }}/{{ $thread->threadid }}/ajax/edit',window._editorUploadUrl);}else{alert('المحرر غير جاهز');}">
+                                    <i class="fas fa-edit me-1"></i> تعديل موضوعك
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+            @endif
+        @endauth
 
         {{-- Thread Header --}}
         <div class="glass-panel mb-4" style="overflow: visible !important; position: relative; z-index: 1050;">
@@ -134,7 +183,10 @@
             </div>
         </div>
 
-        {{-- Posts / الردود --}}
+{{-- Posts / الردود --}}
+        @php
+            $canModeratePosts = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
+        @endphp
         <div id="posts-list" data-page="{{ $posts->currentPage() }}">
         @foreach($posts as $index => $post)
             @include('thread.partials.post', [
@@ -142,6 +194,7 @@
                 'thread' => $thread,
                 'postNumber' => ($posts->currentPage() - 1) * $posts->perPage() + $index + 1,
                 'isFirst' => $loop->first && $posts->currentPage() == 1,
+                'isStaff' => $canModeratePosts,
             ])
         @endforeach
         </div>

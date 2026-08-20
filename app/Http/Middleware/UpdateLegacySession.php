@@ -145,6 +145,17 @@ class UpdateLegacySession
             $this->createSession($newHash, $request, $ip, $path, $userAgent);
         }
 
+        // تحديث user.lastactivity للمستخدم المسجل (مرة كل 10 دقائق كحد أقصى)
+        // — يحافظ على دقة "آخر زيارة" في الملف الشخصي بدل بقائها قديمة لسنوات
+        if (Auth::check()) {
+            $userId = (int) Auth::id();
+            $userThrottleKey = 'user_lastactivity_' . $userId;
+            if (!Cache::has($userThrottleKey)) {
+                Cache::put($userThrottleKey, true, 600);
+                \App\Models\User::whereKey($userId)->update(['lastactivity' => time()]);
+            }
+        }
+
         // Garbage Collector: 2% chance to clean old sessions
         if (rand(1, 100) <= 2) {
             $cutOff = time() - 900; // 15 minutes

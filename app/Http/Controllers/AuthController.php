@@ -73,6 +73,9 @@ class AuthController extends Controller
             Auth::login($user);
             $request->session()->regenerate();
 
+            // تحديث آخر زيارة — lastvisit عند تسجيل الدخول + lastactivity للنشاط الحالي
+            $user->update(['lastvisit' => time(), 'lastactivity' => time()]);
+
             // إن كان الرابط يحمل معامل redirect (من زر دخول في أي صفحة) فاحفظه ليعود إليه بعد الدخول
             $redirect = $request->input('redirect');
             if ($redirect && $this->isSafeLocalUrl($redirect)) {

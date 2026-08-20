@@ -75,11 +75,17 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * آخر زيارة
+     * آخر زيارة — تعرض الأحدث بين lastvisit و lastactivity
+     * (في vBulletin lastvisit لا يتحدث إلا عند تسجيل الدخول بينما lastactivity يتحدث مع كل نشاط،
+     * لذلك استخدام الأحدث يعطي القيمة الصحيحة دائماً).
      */
     public function getLastVisitFormattedAttribute(): \Carbon\Carbon
     {
-        return \Carbon\Carbon::createFromTimestamp($this->lastvisit ?? $this->lastactivity ?? time());
+        $lastVisit = (int) ($this->lastvisit ?? 0);
+        $lastActivity = (int) ($this->lastactivity ?? 0);
+        $latest = max($lastVisit, $lastActivity);
+
+        return \Carbon\Carbon::createFromTimestamp($latest ?: time());
     }
 
     /**

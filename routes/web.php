@@ -73,6 +73,22 @@ Route::post('/thread/new', [ThreadController::class, 'store'])
 // الأعضاء
 Route::get('/user/{id}', [UserController::class, 'show'])->name('user.show')->where('id', '[0-9]+');
 
+// إرسال رسالة زائر على صفحة عضو (بعد تسجيل الدخول)
+Route::post('/user/{id}/message', [UserController::class, 'storeVisitorMessage'])
+    ->name('user.message')
+    ->middleware(['auth', ThrottleRequests::class . ':10,1'])
+    ->where('id', '[0-9]+');
+
+// مراجعة المحتوى من داخل المنتدى (للأدمن والمشرف فقط — التحقق داخل المتحكم)
+Route::middleware(['auth', ThrottleRequests::class . ':30,1'])->group(function () {
+    Route::post('/moderation/thread/{id}/approve', [\App\Http\Controllers\ModerationController::class, 'approveThread'])->name('moderation.thread.approve')->where('id', '[0-9]+');
+    Route::post('/moderation/thread/{id}/reject', [\App\Http\Controllers\ModerationController::class, 'rejectThread'])->name('moderation.thread.reject')->where('id', '[0-9]+');
+    Route::post('/moderation/post/{id}/approve', [\App\Http\Controllers\ModerationController::class, 'approvePost'])->name('moderation.post.approve')->where('id', '[0-9]+');
+    Route::post('/moderation/post/{id}/reject', [\App\Http\Controllers\ModerationController::class, 'rejectPost'])->name('moderation.post.reject')->where('id', '[0-9]+');
+    Route::post('/moderation/message/{id}/approve', [\App\Http\Controllers\ModerationController::class, 'approveVisitorMessage'])->name('moderation.message.approve')->where('id', '[0-9]+');
+    Route::post('/moderation/message/{id}/reject', [\App\Http\Controllers\ModerationController::class, 'rejectVisitorMessage'])->name('moderation.message.reject')->where('id', '[0-9]+');
+});
+
 // البحث
 Route::get('/search', [SearchController::class, 'index'])
     ->name('search')

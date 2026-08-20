@@ -92,15 +92,29 @@
             @endauth
         </div>
 
+        @php
+            $canModerate = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
+        @endphp
+
         @forelse($threads as $thread)
             <div
-                class="thread-item animate-in {{ $thread->sticky ? 'border-start border-4 border-warning bg-opacity-10 bg-warning' : '' }}">
+                class="thread-item animate-in {{ $thread->sticky ? 'border-start border-4 border-warning bg-opacity-10 bg-warning' : '' }} {{ !$thread->visible ? 'border-start border-4 border-warning bg-opacity-10 bg-warning pending-review' : '' }}"
+                id="thread-row-{{ $thread->threadid }}">
                 <div class="thread-icon {{ $thread->sticky ? 'text-warning' : ($thread->open ? '' : 'locked') }}">
-                    <i class="fas {{ $thread->sticky ? 'fa-thumbtack' : ($thread->open ? 'fa-comment-alt' : 'fa-lock') }}"></i>
+                    <i class="fas {{ $thread->sticky ? 'fa-thumbtack' : (!$thread->visible ? 'fa-hourglass-half' : ($thread->open ? 'fa-comment-alt' : 'fa-lock')) }}"></i>
                 </div>
                 <div class="thread-content">
                     <div class="thread-title">
-                        <a href="{{ $thread->url }}">{{ strip_tags($thread->title) }}</a>
+                        @if($thread->visible)
+                            <a href="{{ $thread->url }}">{{ strip_tags($thread->title) }}</a>
+                        @else
+                            {{-- الموضوع قيد المراجعة: قابل للفتح للمشرف أو صاحب الموضوع --}}
+                            <a href="{{ route('thread.show', ['id' => $thread->threadid, 'slug' => $thread->slug]) }}"
+                                class="text-warning">{{ strip_tags($thread->title) }}</a>
+                            <span class="badge bg-warning text-dark ms-1" title="هذا الموضوع قيد المراجعة">
+                                <i class="fas fa-hourglass-half"></i> قيد المراجعة
+                            </span>
+                        @endif
                     </div>
                     <div class="thread-meta">
                         <span>
@@ -126,6 +140,16 @@
                         <span class="thread-stat-label">رد</span>
                     </div>
                 </div>
+                @if(!$thread->visible && $canModerate)
+                    <div class="d-flex flex-column align-items-end gap-2 ms-2">
+                        <button type="button" class="btn btn-sm btn-success" data-moderate="thread-approve" data-id="{{ $thread->threadid }}" data-url="{{ route('moderation.thread.approve', $thread->threadid) }}">
+                            <i class="fas fa-check me-1"></i> موافقة
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" data-moderate="thread-reject" data-id="{{ $thread->threadid }}" data-url="{{ route('moderation.thread.reject', $thread->threadid) }}">
+                            <i class="fas fa-times me-1"></i> رفض
+                        </button>
+                    </div>
+                @endif
             </div>
         @empty
             <div class="empty-state">

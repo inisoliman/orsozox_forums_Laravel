@@ -57,9 +57,18 @@ class OnlineUsersService
         // Fetch Paginated Main Data
         // NOTE: use paginate() (LengthAwarePaginator) so the view's links()
         // works with the default Bootstrap pagination on a sub-folder install.
+        //
+        // الترتيب المطلوب: الأعضاء المسجلون أولاً، ثم البوتات/محركات البحث، ثم الزوار.
+        // نستخدم CASE في SQL بدل الفرز في PHP حتى لا ينكسر الترقيم عبر الصفحات.
+        $botLike = collect($this->botAgents)
+            ->map(fn(string $bot) => "useragent LIKE '%" . addcslashes($bot, "%_\\") . "%'")
+            ->implode(' OR ');
+
         $sessions = Session::where('lastactivity', '>', $cutOff)
             ->with('user')
-            ->orderBy('lastactivity', 'desc')
+            ->orderByRaw(
+                "CASE WHEN userid > 0 THEN 0 WHEN ({$botLike}) THEN 1 ELSE 2 END, lastactivity DESC"
+            )
             ->paginate(20);
 
 

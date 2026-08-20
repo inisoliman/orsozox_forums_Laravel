@@ -167,13 +167,31 @@ class ThreadController extends Controller
         return mb_strlen(trim($text), 'UTF-8');
     }
 
-    /**
+/**
      * عرض الموضوع مع جميع الردود
      */
     public function show(\App\Services\ThreadSeoService $seoService, int $id, ?string $slug = null)
     {
+        $isStaff = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
+        $authId = auth()->id();
+
         // Load SEO-related relations up front to avoid hidden lazy queries in ThreadSeoService.
-        $thread = Thread::with(['forum', 'author', 'firstPost.attachments'])->visible()->findOrFail($id);
+        // المشرف أو صاحب الموضوع يمكنه فتح الموضوع قيد المراجعة (visible = 0) للمعاينة والمراجعة.
+        $threadQuery = Thread::with(['forum', 'author', 'firstPost.attachments']);
+        if ($isStaff) {
+            $thread = $threadQuery->whereIn('visible', [0, 1])->findOrFail($id);
+        } elseif ($authId) {
+            $thread = $threadQuery
+                ->where(function ($q) use ($authId) {
+                    $q->where('visible', 1)
+                        ->orWhere(function ($q2) use ($authId) {
+                            $q2->where('visible', 0)->where('postuserid', $authId);
+                        });
+                })
+                ->findOrFail($id);
+        } else {
+            $thread = $threadQuery->visible()->findOrFail($id);
+        }
 
         // التحقق من صلاحية الوصول لقسم الموضوع
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
@@ -209,11 +227,27 @@ class ThreadController extends Controller
         $current = (int) Cache::get($cacheKey, 0);
         Cache::put($cacheKey, $current + 1, 600); // 10 دقائق
 
-        // الردود مع ترقيم
-        $posts = $thread->posts()
-            ->visible()
+        // الردود مع ترقيم — المشرف يرى كل الردود قيد المراجعة مدمجة في السلسلة نفسها
+        // (بنفس الترتيب الزمني مثل vBulletin) مع تمييزها في العرض. صاحب الموضوع يرى
+        // الردود المرئية + الردود غير المرئية التي كتبها هو (بما فيها محتوى موضوعه
+        // قيد المراجعة). بقية المستخدمين يرون الردود المرئية فقط.
+        $postsQuery = $thread->posts()
             ->chronological()
-            ->with(['author', 'attachments'])
+            ->with(['author', 'attachments']);
+        if ($isStaff) {
+            // المشرف يرى كل شيء
+        } elseif ($authId && $authId === (int) $thread->postuserid) {
+            // صاحب الموضوع يرى المرئية + غير المرئية التي كتبها هو
+            $postsQuery->where(function ($q) use ($authId) {
+                $q->where('visible', 1)
+                    ->orWhere(function ($q2) use ($authId) {
+                        $q2->where('visible', 0)->where('userid', $authId);
+                    });
+            });
+        } else {
+            $postsQuery->visible();
+        }
+        $posts = $postsQuery
             // Avoid COUNT(*) on the large post table; next/previous links are enough here.
             ->simplePaginate(15);
 
@@ -232,7 +266,7 @@ class ThreadController extends Controller
             ->select('threadid', 'title')
             ->first();
 
-        // توليد الـ SEO Object باستخدام الـ Service Layer
+// توليد الـ SEO Object باستخدام الـ Service Layer
         $seoData = $seoService->generate($thread);
         $canReply = $this->canReply($thread);
 
@@ -259,7 +293,14 @@ class ThreadController extends Controller
      */
     public function postsFragment(Request $request, int $id): JsonResponse
     {
-        $thread = Thread::with(['forum', 'author', 'firstPost.attachments'])->visible()->findOrFail($id);
+        $isStaff = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
+
+        $threadQuery = Thread::with(['forum', 'author', 'firstPost.attachments']);
+        if ($isStaff) {
+            $thread = $threadQuery->whereIn('visible', [0, 1])->findOrFail($id);
+        } else {
+            $thread = $threadQuery->visible()->findOrFail($id);
+        }
 
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
         if ($thread->forumid && !ForumPermission::canView($thread->forumid, $usergroupId)) {
@@ -268,11 +309,13 @@ class ThreadController extends Controller
 
         $page = $request->integer('page', 1);
 
-        $posts = $thread->posts()
-            ->visible()
+        $postsQuery = $thread->posts()
             ->chronological()
-            ->with(['author', 'attachments'])
-            ->simplePaginate(15, ['*'], 'page', max(1, $page));
+            ->with(['author', 'attachments']);
+        if (!$isStaff) {
+            $postsQuery->visible();
+        }
+        $posts = $postsQuery->simplePaginate(15, ['*'], 'page', max(1, $page));
 
         $startNumber = ($posts->currentPage() - 1) * $posts->perPage() + 1;
 

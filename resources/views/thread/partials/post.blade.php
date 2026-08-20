@@ -5,8 +5,13 @@
         - $thread : \App\Models\Thread
         - $postNumber : int رقم المشاركة للتسمية #
         - $isFirst : bool (اختياري) هل هذه أول مشاركة في أول صفحة
+        - $isStaff : bool (اختياري) هل المشاهد مشرف/أدمن (لإظهار أزرار المراجعة للردود غير المرئية)
 --}}
-<div class="post-card animate-in {{ ($isFirst ?? false) ? 'first-post' : '' }}"
+@php
+    $isStaff = $isStaff ?? (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator));
+    $pending = (int) $post->visible !== 1;
+@endphp
+<div class="post-card animate-in {{ ($isFirst ?? false) ? 'first-post' : '' }} {{ $pending ? 'border-start border-4 border-warning bg-opacity-10 bg-warning' : '' }}"
     id="post-{{ $post->postid }}">
     <div class="post-header">
         <div class="post-avatar">
@@ -20,9 +25,22 @@
                 <i class="fas fa-clock"></i>
                 {{ $post->created_date->format('Y/m/d - h:i A') }}
                 · {{ $post->created_date->diffForHumans() }}
+                @if($pending)
+                    <span class="badge bg-warning text-dark ms-1" title="هذا الرد قيد المراجعة">
+                        <i class="fas fa-hourglass-half"></i> قيد المراجعة
+                    </span>
+                @endif
             </div>
         </div>
         <div class="d-flex align-items-center gap-2">
+            @if($pending && $isStaff)
+                <button type="button" class="btn btn-sm btn-success" data-moderate="post-approve" data-id="{{ $post->postid }}" data-url="{{ route('moderation.post.approve', $post->postid) }}">
+                    <i class="fas fa-check me-1"></i> موافقة
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-moderate="post-reject" data-id="{{ $post->postid }}" data-url="{{ route('moderation.post.reject', $post->postid) }}">
+                    <i class="fas fa-times me-1"></i> رفض
+                </button>
+            @endif
             @auth
                 @can('update', $post)
                     <button class="btn btn-sm btn-outline-accent" title="تعديل الرد"

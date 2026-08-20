@@ -390,6 +390,9 @@
     {{-- Bootstrap JS --}}
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" defer></script>
 
+    {{-- مراجعة المحتوى من داخل المنتدى (أزرار data-moderate) --}}
+    <script src="{{ asset('js/moderation.js') }}?v={{ time() }}" defer></script>
+
     {{-- Theme Logic --}}
     <script>
         const toggleBtn = document.getElementById('themeToggle');

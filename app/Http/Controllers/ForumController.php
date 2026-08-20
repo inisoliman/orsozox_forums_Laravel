@@ -41,8 +41,24 @@ class ForumController extends Controller
             ], 301);
         }
 
+        $isStaff = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
+        $isOwner = auth()->check();
+
+        // المواضيع: المرئية دائماً + قيد المراجعة (للمشرف فقط، أو صاحب الموضوع لمواضيعه فقط)
+        // تُدمج في القائمة نفسها بترتيب زمني طبيعي مثل vBulletin
         $threads = Thread::where('forumid', $id)
-            ->visible()
+            ->where(function ($query) use ($isStaff, $isOwner) {
+                $query->where('visible', 1);
+                if ($isStaff) {
+                    // المشرف يرى كل المواضيع قيد المراجعة
+                    $query->orWhere('visible', 0);
+                } elseif ($isOwner) {
+                    // صاحب الموضوع يرى مواضيعه قيد المراجعة فقط (ليتمكن من التعديل قبل الموافقة)
+                    $query->orWhere(function ($q) {
+                        $q->where('visible', 0)->where('postuserid', auth()->id());
+                    });
+                }
+            })
             ->orderBy('sticky', 'desc')
             ->orderBy('dateline', 'desc')
             ->with(['author'])
