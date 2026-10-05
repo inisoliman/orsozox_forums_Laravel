@@ -10,6 +10,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Services\ModerationActionService;
+use Filament\Notifications\Notification;
 
 class ThreadResource extends Resource
 {
@@ -48,11 +50,7 @@ class ThreadResource extends Resource
                 ->label('مفتوح للردود')
                 ->default(true),
 
-            Forms\Components\Toggle::make('visible')
-                ->label('مرئي')
-                ->default(true),
-
-            Forms\Components\Hidden::make('dateline')
+             Forms\Components\Hidden::make('dateline')
                 ->default(time()),
 
             Forms\Components\Hidden::make('lastpost')
@@ -122,18 +120,36 @@ class ThreadResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('تعديل'),
-                Tables\Actions\DeleteAction::make()->label('حذف'),
+                 Tables\Actions\Action::make('hard_delete')
+                     ->label('حذف فعلي')
+                     ->icon('heroicon-o-trash')
+                     ->color('danger')
+                     ->visible(fn () => app(\App\Services\ModerationPermissionService::class)->isAdministrator(auth()->user()))
+                     ->requiresConfirmation()
+                     ->action(function (Thread $record) {
+                         app(ModerationActionService::class)->hardDeleteThread($record, auth()->user());
+                         Notification::make()->title('تم الحذف النهائي')->success()->send();
+                     }),
                 Tables\Actions\Action::make('toggle_open')
                     ->label(fn(Thread $record) => $record->open ? 'إغلاق' : 'فتح')
                     ->icon(fn(Thread $record) => $record->open ? 'heroicon-o-lock-closed' : 'heroicon-o-lock-open')
                     ->action(function (Thread $record) {
-                        $record->update(['open' => !$record->open]);
+                        app(ModerationActionService::class)->setOpen($record, ! (bool) $record->open, auth()->user());
                     })
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->label('حذف المحدد'),
+                     Tables\Actions\BulkAction::make('hard_delete')
+                         ->label('حذف المحدد فعلياً')
+                         ->color('danger')
+                         ->visible(fn () => app(\App\Services\ModerationPermissionService::class)->isAdministrator(auth()->user()))
+                         ->requiresConfirmation()
+                         ->action(function (\Illuminate\Support\Collection $records) {
+                             foreach ($records as $record) {
+                                 app(ModerationActionService::class)->hardDeleteThread($record, auth()->user());
+                             }
+                         }),
                 ]),
             ]);
     }

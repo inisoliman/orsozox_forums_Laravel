@@ -164,7 +164,114 @@ class BBCodeParser
             $text
         );
 
+        // رموز الأيقونات القديمة (كانت صور gif حُذفت) → أزرار تحميل جميلة
+        $text = self::convertSmilies($text);
+
         return $text;
+    }
+
+    /**
+     * أيقونات التحميل الجميلة — بديل الرموز القديمة :1: ... :10:
+     *
+     * في vBulletin القديم كانت هذه الرموز تُستبدَل بصور gif من مجلد القالب،
+     * وأُزيلت تلك الصور فصارت الرموز تُعرض كنص خام. هنا نحوّلها إلى أزرار
+     * تحميل أنيقة مبنية بـ CSS (بلا أي اعتماد على ملفات صور خارجية).
+     *
+     * @var array<string, array{icon: string, label: string, tone: string}>
+     */
+    private const DOWNLOAD_ICONS = [
+        ':1:'  => ['icon' => 'fa-file-arrow-down', 'label' => 'تحميل',    'tone' => 'blue'],
+        ':2:'  => ['icon' => 'fa-camera-retro',    'label' => 'صور',      'tone' => 'violet'],
+        ':3:'  => ['icon' => 'fa-music',           'label' => 'صوتيات',   'tone' => 'green'],
+        ':4:'  => ['icon' => 'fa-video',           'label' => 'فيديو',    'tone' => 'red'],
+        ':5:'  => ['icon' => 'fa-book-open',       'label' => 'مستندات',  'tone' => 'amber'],
+        ':6:'  => ['icon' => 'fa-file-zipper',     'label' => 'ملفات مضغوطة', 'tone' => 'slate'],
+        ':7:'  => ['icon' => 'fa-mobile-screen',   'label' => 'برامج',    'tone' => 'cyan'],
+        ':8:'  => ['icon' => 'fa-palette',         'label' => 'تصاميم',   'tone' => 'pink'],
+        ':9:'  => ['icon' => 'fa-gamepad',         'label' => 'ألعاب',    'tone' => 'indigo'],
+        ':10:' => ['icon' => 'fa-star',            'label' => 'حصري',     'tone' => 'gold'],
+    ];
+
+    /**
+     * تحويل رموز الأيقونات القديمة إلى أزرار تحميل جميلة.
+     *
+     * الحرص: لا نستبدل الرمز إذا كان داخل وسم HTML أو خاصية (مثل href/src)
+     * تفادياً لإفساد الروابط أو الترميز. لذلك نمرّ على النص ونتخطى أي
+     * مقطع واقع داخل <...>.
+     */
+    public static function convertSmilies(string $html): string
+    {
+        if ($html === '' || strpos($html, ':') === false) {
+            return $html;
+        }
+
+        $pattern = '/(?<![\w:])(:10:'
+            . '|:9:|:8:|:7:|:6:|:5:|:4:|:3:|:2:|:1:)'
+            . '(?![\w:])/';
+
+        // نحمي كتل الكود/المحرر أولاً حتى لا تُحوَّل الرموز داخلها (تبقى نصاً حرفياً).
+        // نستبدلها مؤقتاً بعناصر نائبة ثم نعيدها كما هي في النهاية.
+        $vault = [];
+        $protected = preg_replace_callback(
+            '/<(pre|code|textarea|script)\b[^>]*>.*?<\/\1>/isu',
+            function ($m) use (&$vault) {
+                $key = "\x00SMILIE_KEEP_" . count($vault) . "\x00";
+                $vault[$key] = $m[0];
+                return $key;
+            },
+            $html
+        );
+
+        if ($protected === null) {
+            // فشل الحماية لأي سبب — نعود للأصل بلا تحويل (أأمن من إفساد المحتوى).
+            return $html;
+        }
+
+        // نقسّم النص إلى: وسوم HTML (<...>) وبقية النص، ونحوّل في البقية فقط.
+        $parts = preg_split('/(<[^>]*>)/u', $protected, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return $html;
+        }
+
+        foreach ($parts as $i => $part) {
+            // العناصر ذات الفهرس الفردي هي وسوم HTML — نتخطاها كما هي.
+            if ($i % 2 === 1) {
+                continue;
+            }
+
+            $parts[$i] = preg_replace_callback($pattern, function ($m) {
+                $code = $m[1];
+                $meta = self::DOWNLOAD_ICONS[$code] ?? null;
+                if ($meta === null) {
+                    return $code;
+                }
+
+                return self::renderDownloadButton($meta['icon'], $meta['label'], $meta['tone']);
+            }, $part);
+        }
+
+        $result = implode('', $parts);
+
+        // نعيد كتل الكود المحمية كما كانت.
+        if ($vault !== []) {
+            $result = strtr($result, $vault);
+        }
+
+        return $result;
+    }
+
+    /**
+     * بناء زر التحميل كـ HTML أنيق.
+     */
+    private static function renderDownloadButton(string $icon, string $label, string $tone): string
+    {
+        return '<span class="bb-download-btn bb-dl-' . $tone . '"'
+            . ' role="button" tabindex="0"'
+            . ' title="' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '">'
+            . '<i class="fas ' . $icon . '"></i>'
+            . '<span class="bb-dl-label">' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span>'
+            . '<i class="fas fa-download bb-dl-arrow"></i>'
+            . '</span>';
     }
 
     /**
@@ -174,6 +281,8 @@ class BBCodeParser
     {
         // إزالة جميع أكواد BBCode
         $text = preg_replace('/\[\/?\w+(?:=[^\]]+)?\]/i', '', $text);
+        // إزالة رموز الأيقونات القديمة (:1: ... :10:) من النص العادي
+        $text = preg_replace('/(?<![\w:]):(?:10|[1-9]):(?![\w:])/', '', $text);
         $text = preg_replace('/\s+/', ' ', trim($text));
         return $text;
     }

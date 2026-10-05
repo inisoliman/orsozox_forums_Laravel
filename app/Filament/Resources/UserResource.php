@@ -32,6 +32,14 @@ class UserResource extends Resource
                 ->email()
                 ->maxLength(100),
 
+            Forms\Components\TextInput::make('new_password')
+                ->label('كلمة المرور الجديدة')
+                ->password()
+                ->revealable()
+                ->minLength(6)
+                ->dehydrated(false)
+                ->helperText('اتركها فارغة للحفاظ على كلمة المرور الحالية.'),
+
             Forms\Components\TextInput::make('usertitle')
                 ->label('اللقب')
                 ->maxLength(250),
@@ -51,6 +59,22 @@ class UserResource extends Resource
                     6 => 'مدير',
                     7 => 'مدير أعلى',
                 ]),
+        ]);
+    }
+
+    /**
+     * معالجة حفظ العضو: تشفير كلمة المرور بصيغة vBulletin عند تعيينها.
+     */
+    public static function applyPassword(User $record, ?string $plain): void
+    {
+        if ($plain === null || $plain === '') {
+            return;
+        }
+
+        $salt = $record->salt ?: substr(md5((string) mt_rand()), 0, 30);
+        $record->update([
+            'password' => md5(md5($plain) . $salt),
+            'salt' => $salt,
         ]);
     }
 
@@ -105,6 +129,27 @@ class UserResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('تعديل'),
+                Tables\Actions\Action::make('reset_password')
+                    ->label('إعادة ضبط كلمة المرور')
+                    ->icon('heroicon-o-key')
+                    ->form([
+                        Forms\Components\TextInput::make('new_password')
+                            ->label('كلمة المرور الجديدة')
+                            ->password()
+                            ->revealable()
+                            ->minLength(6)
+                            ->required(),
+                    ])
+                    ->action(function (User $record, array $data) {
+                        static::applyPassword($record, $data['new_password']);
+                        \Filament\Notifications\Notification::make()
+                            ->title('تم إعادة ضبط كلمة المرور')
+                            ->success()
+                            ->send();
+                    }),
+            ])
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([]),
             ]);
     }
 
@@ -112,6 +157,7 @@ class UserResource extends Resource
     {
         return [
             'index' => Pages\ListUsers::route('/'),
+            'create' => Pages\CreateUser::route('/create'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
     }

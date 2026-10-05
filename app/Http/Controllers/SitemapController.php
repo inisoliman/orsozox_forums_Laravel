@@ -97,8 +97,12 @@ class SitemapController extends Controller
             $xml .= $this->urlTag(route('page.contact'), $staticLastmod, 'monthly', '0.5');
 
             // الأقسام — lastmod = آخر نشاط داخل القسم
+            // استثنِ الأقسام التي حدّدها الأدمن لعدم إدراجها في خرائط الموقع
+            // (مثل أقسام المحذوفات أو المكرر) حفاظًا على جودة الأرشفة والزحف.
+            $excludedForumIds = \App\Models\SiteSetting::excludedSitemapForumIds();
             $forums = Forum::active()
                 ->publiclyAccessible()
+                ->when($excludedForumIds !== [], fn ($query) => $query->whereNotIn('forumid', $excludedForumIds))
                 ->get(['forumid', 'title', 'parentid', 'options']);
             foreach ($forums as $forum) {
                 $forumLastpost = (int) Thread::publiclyIndexable()

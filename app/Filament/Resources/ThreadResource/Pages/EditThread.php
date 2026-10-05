@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\ThreadResource\Pages;
 
 use App\Filament\Resources\ThreadResource;
-use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 
 class EditThread extends EditRecord
@@ -15,9 +14,7 @@ class EditThread extends EditRecord
 
     protected function getHeaderActions(): array
     {
-        return [
-            Actions\DeleteAction::make()->label('حذف'),
-        ];
+        return [];
     }
 
     protected function mutateFormDataBeforeFill(array $data): array

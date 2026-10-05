@@ -404,7 +404,7 @@
                 @endforelse
 
                 @if($threads->hasPages())
-                    <div class="d-flex justify-content-center mt-3">{{ $threads->links() }}</div>
+                    <div class="d-flex justify-content-center mt-3">{{ $threads->links('vendor.pagination.forum-pages') }}</div>
                 @endif
             </div>
 
@@ -440,7 +440,7 @@
                 @endforelse
 
                 @if($replies->hasPages())
-                    <div class="d-flex justify-content-center mt-3">{{ $replies->links() }}</div>
+                    <div class="d-flex justify-content-center mt-3">{{ $replies->links('vendor.pagination.forum-pages') }}</div>
                 @endif
             </div>
 
@@ -523,7 +523,7 @@
                 </div>
 
                 @if($messages->hasPages())
-                    <div class="d-flex justify-content-center mt-3">{{ $messages->links() }}</div>
+                    <div class="d-flex justify-content-center mt-3">{{ $messages->links('vendor.pagination.forum-pages') }}</div>
                 @endif
             </div>
 

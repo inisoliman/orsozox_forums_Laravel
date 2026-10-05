@@ -1,0 +1,64 @@
+User-agent: *
+Allow: /forums/
+Crawl-delay: 1000
+
+# Protect sensitive paths
+Disallow: /forums/admin/
+Disallow: /forums/api/
+Disallow: /forums/public/login
+Disallow: /forums/public/search?
+Disallow: /forums/search?
+Disallow: /forums/search/suggest
+Disallow: /forums/online-users
+Disallow: /forums/livewire/
+Disallow: /forums/storage/framework/
+Disallow: /forums/storage/logs/
+
+# Prevent crawling of external redirects and internal system files
+Disallow: /forums/public/redirector.php
+Disallow: /forums/redirector.php
+Disallow: /*?replytocom=
+Disallow: /forums/.env
+Disallow: /forums/vendor/
+
+# Allow Googlebot to crawl essential assets for rendering
+User-agent: Googlebot
+Allow: /forums/public/css/
+Allow: /forums/public/js/
+Allow: /forums/storage/app/public/
+Allow: /forums/sitemap.xml
+Allow: /forums/sitemap-forums.xml
+Allow: /forums/sitemap-threads-
+Crawl-delay: 2
+
+User-agent: Bingbot
+Allow: /forums/public/css/
+Allow: /forums/public/js/
+Allow: /forums/storage/app/public/
+Allow: /forums/sitemap.xml
+Allow: /forums/sitemap-forums.xml
+Allow: /forums/sitemap-threads-
+Crawl-delay: 5
+
+# Block aggressive SEO/AI/data crawlers that commonly overload shared hosting.
+User-agent: AhrefsBot
+Disallow: /
+User-agent: SemrushBot
+Disallow: /
+User-agent: MJ12bot
+Disallow: /
+User-agent: DotBot
+Disallow: /
+User-agent: PetalBot
+Disallow: /
+User-agent: Bytespider
+Disallow: /
+User-agent: GPTBot
+Disallow: /
+User-agent: ClaudeBot
+Disallow: /
+User-agent: CCBot
+Disallow: /
+
+# Sitemap index
+Sitemap: https://orsozox.com/forums/sitemap.xml

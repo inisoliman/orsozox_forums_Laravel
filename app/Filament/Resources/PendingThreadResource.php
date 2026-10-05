@@ -6,6 +6,7 @@ use App\Filament\Resources\PendingThreadResource\Pages;
 use App\Models\Forum;
 use App\Models\Thread;
 use App\Services\ModerationService;
+use App\Services\ModerationActionService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -34,6 +35,8 @@ class PendingThreadResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 Tables\Columns\TextColumn::make('threadid')
                     ->label('ID')
@@ -90,7 +93,22 @@ class PendingThreadResource extends Resource
                         'content' => $record->firstPost ? $record->firstPost->parsed_content : '',
                     ])),
 
-                Tables\Actions\DeleteAction::make()->label('حذف'),
+                 Tables\Actions\Action::make('soft_delete')
+                     ->label('رفض وحذف بسيط')
+                     ->icon('heroicon-o-trash')
+                     ->color('danger')
+                     ->requiresConfirmation()
+                     ->form([
+                         \Filament\Forms\Components\Textarea::make('reason')
+                             ->label('سبب الرفض')
+                             ->default('رفض من المراجعة')
+                             ->maxLength(125)
+                             ->required(),
+                     ])
+                     ->action(function (Thread $record, array $data) {
+                         app(ModerationActionService::class)->softDeleteThread($record, auth()->user(), $data['reason']);
+                         Notification::make()->title('تم نقل الموضوع إلى المحذوفات')->success()->send();
+                     }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -110,6 +128,33 @@ class PendingThreadResource extends Resource
 
                             Notification::make()
                                 ->title('تمت الموافقة على ' . $count . ' مواضيع')
+                                ->success()
+                                ->send();
+                        }),
+                    Tables\Actions\Action::make('bulk_reject')
+                        ->label('رفض وحذف المحدد')
+                        ->icon('heroicon-o-trash')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->form([
+                            \Filament\Forms\Components\Textarea::make('reason')
+                                ->label('سبب الرفض')
+                                ->default('رفض من المراجعة')
+                                ->maxLength(125)
+                                ->required(),
+                        ])
+                        ->action(function (\Illuminate\Support\Collection $records, array $data) {
+                            $service = app(ModerationActionService::class);
+                            $count = 0;
+                            foreach ($records as $record) {
+                                if ((int) $record->visible === 0) {
+                                    $service->softDeleteThread($record, auth()->user(), $data['reason']);
+                                    $count++;
+                                }
+                            }
+
+                            Notification::make()
+                                ->title('تم رفض ' . $count . ' مواضيع')
                                 ->success()
                                 ->send();
                         }),

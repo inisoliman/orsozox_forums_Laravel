@@ -33,6 +33,7 @@ class User extends Authenticatable implements FilamentUser, HasName
         'homepage',
         'usertitle',
         'avatarrevision',
+        'membergroupids',
     ];
 
     protected $hidden = [
@@ -64,6 +65,21 @@ class User extends Authenticatable implements FilamentUser, HasName
     public function userPosts(): HasMany
     {
         return $this->hasMany(Post::class, 'userid', 'userid');
+    }
+
+    public function moderatorAssignments(): HasMany
+    {
+        return $this->hasMany(ModeratorAssignment::class, 'userid', 'userid');
+    }
+
+    public function belongsToLegacyGroup(int $groupId): bool
+    {
+        if ((int) $this->usergroupid === $groupId) {
+            return true;
+        }
+
+        $secondary = array_filter(array_map('intval', explode(',', (string) $this->membergroupids)));
+        return in_array($groupId, $secondary, true);
     }
 
     /**
@@ -108,11 +124,11 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * هل العضو مشرف (مجموعة 5 أو 6 أو 7)
+     * الأدمن الحقيقي في vBulletin (المجموعة 6، أساسية أو إضافية)
      */
     public function getIsAdminAttribute(): bool
     {
-        return in_array($this->usergroupid, config('forum.admin_usergroup_ids', [5, 6, 7]));
+        return $this->belongsToLegacyGroup((int) config('forum.administrator_usergroup_id', 6));
     }
 
     /**
@@ -132,11 +148,17 @@ class User extends Authenticatable implements FilamentUser, HasName
     }
 
     /**
-     * هل العضو مشرف قسم (مجموعة 5 أو 6)
+     * هل العضو ضمن مجموعة إشرافية (5 أو 6 أو 7)
      */
     public function getIsModeratorAttribute(): bool
     {
-        return in_array($this->usergroupid, config('forum.admin_usergroup_ids', [5, 6, 7]));
+        foreach (config('forum.moderator_usergroup_ids', [5, 6, 7]) as $groupId) {
+            if ($this->belongsToLegacyGroup((int) $groupId)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

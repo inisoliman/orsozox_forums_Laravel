@@ -10,6 +10,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Services\ModerationActionService;
+use Filament\Notifications\Notification;
 
 class PostResource extends Resource
 {
@@ -54,11 +56,7 @@ class PostResource extends Resource
                 })
                 ->dehydrateStateUsing(fn(?string $state) => '<!-- HTML -->' . $state),
 
-            Forms\Components\Toggle::make('visible')
-                ->label('مرئي')
-                ->default(true),
-
-            Forms\Components\Hidden::make('dateline')
+             Forms\Components\Hidden::make('dateline')
                 ->default(time()),
         ]);
     }
@@ -100,11 +98,29 @@ class PostResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make()->label('تعديل'),
-                Tables\Actions\DeleteAction::make()->label('حذف'),
+                 Tables\Actions\Action::make('hard_delete')
+                     ->label('حذف فعلي')
+                     ->icon('heroicon-o-trash')
+                     ->color('danger')
+                     ->visible(fn () => app(\App\Services\ModerationPermissionService::class)->isAdministrator(auth()->user()))
+                     ->requiresConfirmation()
+                     ->action(function (Post $record) {
+                         app(ModerationActionService::class)->hardDeletePost($record, auth()->user());
+                         Notification::make()->title('تم الحذف النهائي')->success()->send();
+                     }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()->label('حذف المحدد'),
+                     Tables\Actions\BulkAction::make('hard_delete')
+                         ->label('حذف المحدد فعلياً')
+                         ->color('danger')
+                         ->visible(fn () => app(\App\Services\ModerationPermissionService::class)->isAdministrator(auth()->user()))
+                         ->requiresConfirmation()
+                         ->action(function (\Illuminate\Support\Collection $records) {
+                             foreach ($records as $record) {
+                                 app(ModerationActionService::class)->hardDeletePost($record, auth()->user());
+                             }
+                         }),
                 ]),
             ]);
     }

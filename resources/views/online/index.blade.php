@@ -102,7 +102,7 @@
             </div>
 
             <div class="d-flex justify-content-center mt-4">
-                {{ $paginator->links() }}
+                {{ $paginator->links('vendor.pagination.forum-pages') }}
             </div>
 
         @else

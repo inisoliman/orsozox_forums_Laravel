@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\User;
 use App\Models\Thread;
 use App\Models\VisitorMessage;
+use App\Services\ModerationPermissionService;
 use App\Services\LocalAI\SpamShieldService;
 use Illuminate\Http\Request;
 
@@ -53,7 +54,7 @@ class UserController extends Controller
 
         // رسائل زوار قيد المراجعة — تظهر فقط للأدمن والمشرف
         $pendingMessages = collect();
-        if (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator)) {
+        if (auth()->check() && app(ModerationPermissionService::class)->canModerateVisitorMessage(auth()->user())) {
             $pendingMessages = VisitorMessage::where('userid', $id)
                 ->moderation()
                 ->orderBy('dateline', 'desc')

@@ -19,6 +19,13 @@ class Forum extends Model
         'description',
         'displayorder',
         'parentid',
+        'threadcount',
+        'replycount',
+        'lastpost',
+        'lastpostid',
+        'lastposter',
+        'lastthread',
+        'lastthreadid',
     ];
 
     protected $casts = [
@@ -133,7 +140,7 @@ class Forum extends Model
         $usergroupId = $user ? (int) $user->usergroupid : 1;
 
         // المشرفون والإدارة يرون كل الأقسام
-        if (in_array($usergroupId, config('forum.admin_usergroup_ids', [5, 6, 7]))) {
+        if ($user && $user->is_moderator) {
             return $query;
         }
 

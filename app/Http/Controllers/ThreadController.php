@@ -172,26 +172,15 @@ class ThreadController extends Controller
      */
     public function show(\App\Services\ThreadSeoService $seoService, int $id, ?string $slug = null)
     {
-        $isStaff = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
+        $permissionService = app(\App\Services\ModerationPermissionService::class);
         $authId = auth()->id();
 
         // Load SEO-related relations up front to avoid hidden lazy queries in ThreadSeoService.
         // المشرف أو صاحب الموضوع يمكنه فتح الموضوع قيد المراجعة (visible = 0) للمعاينة والمراجعة.
         $threadQuery = Thread::with(['forum', 'author', 'firstPost.attachments']);
-        if ($isStaff) {
-            $thread = $threadQuery->whereIn('visible', [0, 1])->findOrFail($id);
-        } elseif ($authId) {
-            $thread = $threadQuery
-                ->where(function ($q) use ($authId) {
-                    $q->where('visible', 1)
-                        ->orWhere(function ($q2) use ($authId) {
-                            $q2->where('visible', 0)->where('postuserid', $authId);
-                        });
-                })
-                ->findOrFail($id);
-        } else {
-            $thread = $threadQuery->visible()->findOrFail($id);
-        }
+        $thread = $threadQuery->whereIn('visible', [0, 1])->findOrFail($id);
+        $isStaff = auth()->check() && $permissionService->canManageForum(auth()->user(), (int) $thread->forumid);
+        abort_unless((int) $thread->visible === 1 || $isStaff || ($authId && $authId === (int) $thread->postuserid), 404);
 
         // التحقق من صلاحية الوصول لقسم الموضوع
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
@@ -248,8 +237,8 @@ class ThreadController extends Controller
             $postsQuery->visible();
         }
         $posts = $postsQuery
-            // Avoid COUNT(*) on the large post table; next/previous links are enough here.
-            ->simplePaginate(15);
+            // paginate يوفّر العدد الإجمالي لعرض أرقام الصفحات ومربع الانتقال المباشر.
+            ->paginate(15);
 
         // الموضوع التالي والسابق في نفس القسم
         $nextThread = Thread::where('forumid', $thread->forumid)
@@ -282,7 +271,10 @@ class ThreadController extends Controller
 
         $usergroupId = (int) $user->usergroupid;
 
-        return ($thread->open || $user->is_admin || $user->is_moderator)
+        $canManage = app(\App\Services\ModerationPermissionService::class)
+            ->canManageForum($user, (int) $thread->forumid);
+
+        return ($thread->open || $canManage)
             && ForumPermission::canReply($thread->forumid, $usergroupId);
     }
 
@@ -293,14 +285,11 @@ class ThreadController extends Controller
      */
     public function postsFragment(Request $request, int $id): JsonResponse
     {
-        $isStaff = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
-
+        $permissionService = app(\App\Services\ModerationPermissionService::class);
         $threadQuery = Thread::with(['forum', 'author', 'firstPost.attachments']);
-        if ($isStaff) {
-            $thread = $threadQuery->whereIn('visible', [0, 1])->findOrFail($id);
-        } else {
-            $thread = $threadQuery->visible()->findOrFail($id);
-        }
+        $thread = $threadQuery->whereIn('visible', [0, 1])->findOrFail($id);
+        $isStaff = auth()->check() && $permissionService->canManageForum(auth()->user(), (int) $thread->forumid);
+        abort_unless((int) $thread->visible === 1 || $isStaff || (auth()->id() && auth()->id() === (int) $thread->postuserid), 404);
 
         $usergroupId = auth()->check() ? (int) auth()->user()->usergroupid : 1;
         if ($thread->forumid && !ForumPermission::canView($thread->forumid, $usergroupId)) {

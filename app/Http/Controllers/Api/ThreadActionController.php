@@ -8,9 +8,17 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
+use App\Services\ModerationActionService;
+use App\Services\ModerationPermissionService;
+use RuntimeException;
 
 class ThreadActionController extends Controller
 {
+    public function __construct(
+        private readonly ModerationActionService $actions,
+        private readonly ModerationPermissionService $permissions,
+    ) {
+    }
     /**
      * التحقق من الصلاحيات (أدمن، مشرف، أو كاتب الموضوع)
      */
@@ -21,7 +29,7 @@ class ThreadActionController extends Controller
             abort(403, 'غير مصرح لك.');
         }
 
-        if ($user->is_admin || $user->is_moderator || $user->userid === $thread->postuserid) {
+        if ($user->can('update', $thread)) {
             return true;
         }
 
@@ -66,14 +74,13 @@ class ThreadActionController extends Controller
     public function move(Request $request, $id)
     {
         $thread = Thread::findOrFail($id);
-        $this->authorizeAction($thread);
+        abort_unless($this->permissions->canMoveThread($request->user(), $thread), 403, 'ليس لديك صلاحية نقل الموضوع.');
 
         $request->validate([
             'forumid' => 'required|exists:forum,forumid',
         ]);
 
-        $thread->forumid = $request->forumid;
-        $thread->save();
+        $this->actions->moveThread($thread, (int) $request->forumid, $request->user());
 
         return response()->json([
             'success' => true,
@@ -88,18 +95,87 @@ class ThreadActionController extends Controller
     public function destroy($id)
     {
         $thread = Thread::findOrFail($id);
-        $this->authorizeAction($thread);
-
+        $actor = request()->user();
+        abort_unless($this->permissions->canSoftDeleteThread($actor, $thread), 403, 'ليس لديك صلاحية حذف الموضوع.');
         $forumId = $thread->forumid;
-
-        // حذف الردود ثم المرفقات المرتبطة (يتم ذلك عادة عن طريق cascaded deletes أو يدوياً)
-        Post::where('threadid', $thread->threadid)->delete();
-        $thread->delete();
+        $this->actions->softDeleteThread($thread, $actor, (string) request()->input('reason', ''));
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف الموضوع بنجاح!',
+            'message' => 'تم حذف الموضوع حذفاً بسيطاً ويمكن استعادته.',
             'redirect' => route('forum.show', ['id' => $forumId])
+        ]);
+    }
+
+    public function restore(Request $request, int $id)
+    {
+        $thread = Thread::findOrFail($id);
+        $this->actions->restoreThread($thread, $request->user());
+        return response()->json(['success' => true, 'message' => 'تمت استعادة الموضوع.', 'redirect' => $thread->url]);
+    }
+
+    public function hardDelete(Request $request, int $id)
+    {
+        $request->validate(['confirmed' => ['required', 'accepted']]);
+        $thread = Thread::findOrFail($id);
+        $forumId = (int) $thread->forumid;
+        $this->actions->hardDeleteThread($thread, $request->user());
+        return response()->json(['success' => true, 'message' => 'تم حذف الموضوع نهائياً.', 'redirect' => route('forum.show', ['id' => $forumId])]);
+    }
+
+    public function sticky(Request $request, int $id)
+    {
+        $thread = Thread::findOrFail($id);
+        $data = $request->validate(['sticky' => ['required', 'boolean']]);
+        $this->actions->setSticky($thread, (bool) $data['sticky'], $request->user());
+        return response()->json(['success' => true, 'message' => $data['sticky'] ? 'تم تثبيت الموضوع.' : 'تم إلغاء تثبيت الموضوع.']);
+    }
+
+    public function open(Request $request, int $id)
+    {
+        $thread = Thread::findOrFail($id);
+        $data = $request->validate(['open' => ['required', 'boolean']]);
+        $this->actions->setOpen($thread, (bool) $data['open'], $request->user());
+        return response()->json(['success' => true, 'message' => $data['open'] ? 'تم فتح الموضوع.' : 'تم إغلاق الموضوع.']);
+    }
+
+    /**
+     * دمج موضوع في موضوع هدف عبر AJAX
+     */
+    public function merge(Request $request, int $id)
+    {
+        $thread = Thread::findOrFail($id);
+        $data = $request->validate([
+            'target_thread_id' => ['required', 'integer', 'exists:thread,threadid'],
+        ]);
+        $target = Thread::findOrFail($data['target_thread_id']);
+        $this->actions->mergeThreads($target, [$thread->threadid], $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم دمج الموضوع في الموضوع الهدف.',
+            'redirect' => $target->url,
+        ]);
+    }
+
+    /**
+     * نقل رد أو عدة ردود إلى موضوع هدف عبر AJAX
+     */
+    public function movePosts(Request $request, int $id)
+    {
+        $thread = Thread::findOrFail($id);
+        $data = $request->validate([
+            'post_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'post_ids.*' => ['integer', 'distinct', 'exists:post,postid'],
+            'target_thread_id' => ['required', 'integer', 'exists:thread,threadid'],
+        ]);
+        $target = Thread::findOrFail($data['target_thread_id']);
+        $this->actions->movePosts($data['post_ids'], $target, $request->user());
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم نقل الردود إلى الموضوع الهدف.',
+            'redirect' => $target->url,
         ]);
     }
 }

@@ -8,7 +8,8 @@
         - $isStaff : bool (اختياري) هل المشاهد مشرف/أدمن (لإظهار أزرار المراجعة للردود غير المرئية)
 --}}
 @php
-    $isStaff = $isStaff ?? (auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator));
+    $isStaff = $isStaff ?? (auth()->check() && app(\App\Services\ModerationPermissionService::class)
+        ->canManageForum(auth()->user(), (int) $thread->forumid));
     $pending = (int) $post->visible !== 1;
 @endphp
 <div class="post-card animate-in {{ ($isFirst ?? false) ? 'first-post' : '' }} {{ $pending ? 'border-start border-4 border-warning bg-opacity-10 bg-warning' : '' }}"
@@ -33,6 +34,9 @@
             </div>
         </div>
         <div class="d-flex align-items-center gap-2">
+            @if(!empty($selectable))
+                <input type="checkbox" class="form-check-input move-post-checkbox me-1" value="{{ $post->postid }}" aria-label="تحديد الرد للنقل">
+            @endif
             @if($pending && $isStaff)
                 <button type="button" class="btn btn-sm btn-success" data-moderate="post-approve" data-id="{{ $post->postid }}" data-url="{{ route('moderation.post.approve', $post->postid) }}">
                     <i class="fas fa-check me-1"></i> موافقة

@@ -67,6 +67,21 @@ class Post extends Model
         return $query->where('visible', 1);
     }
 
+    public function scopePublished($query)
+    {
+        return $query->where('visible', 1);
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('visible', 0);
+    }
+
+    public function scopeSoftDeleted($query)
+    {
+        return $query->where('visible', 2);
+    }
+
     /**
      * ترتيب زمني
      */
@@ -88,6 +103,8 @@ class Post extends Model
         return Cache::remember($cacheKey, 86400, function () use ($text) {
             if (str_starts_with($text, '<!-- HTML -->')) {
                 $parsed = str_replace('<!-- HTML -->', '', $text);
+                // محتوى المحرر الجديد (HTML) — نحوّل رموز الأيقونات القديمة فيه أيضاً
+                $parsed = BBCodeParser::convertSmilies($parsed);
             } else {
                 $parsed = BBCodeParser::parse($text);
             }

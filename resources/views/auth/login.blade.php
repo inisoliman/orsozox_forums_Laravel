@@ -54,6 +54,12 @@
                         </button>
                     </form>
 
+                    <div class="text-center mt-3">
+                        <a href="{{ route('password.request') }}" class="text-muted text-decoration-none small hover-slide-left">
+                            <i class="fas fa-key me-1"></i> نسيت كلمة المرور؟
+                        </a>
+                    </div>
+
                     <div class="text-center mt-4 pt-3 border-top border-light border-opacity-10">
                         <a href="{{ route('home') }}" class="text-muted text-decoration-none small hover-slide-left">
                             <i class="fas fa-arrow-right me-1"></i> العودة للرئيسية

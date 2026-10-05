@@ -27,19 +27,21 @@ class ModerationService
     {
         return (bool) DB::transaction(function () use ($threadId) {
             $thread = Thread::whereKey($threadId)->first();
-            if (! $thread || (int) $thread->visible === 1) {
+            if (! $thread || (int) $thread->visible !== 0) {
                 return false;
             }
 
             // نشر أول مشاركة (المحتوى الأساسي)
             if ($thread->firstpostid) {
-                Post::whereKey($thread->firstpostid)->update(['visible' => 1]);
+                Post::whereKey($thread->firstpostid)
+                    ->where('visible', 0)
+                    ->update(['visible' => 1]);
             }
 
             $thread->visible = 1;
             $thread->save();
 
-            Forum::whereKey($thread->forumid)->increment('threadcount');
+            app(ForumCounterService::class)->rebuild((int) $thread->forumid);
 
             if ($thread->postuserid) {
                 User::whereKey($thread->postuserid)->increment('posts');
@@ -56,17 +58,23 @@ class ModerationService
     {
         return (bool) DB::transaction(function () use ($postId) {
             $post = Post::whereKey($postId)->first();
-            if (! $post || (int) $post->visible === 1) {
+            if (! $post || (int) $post->visible !== 0) {
+                return false;
+            }
+
+            $thread = Thread::whereKey($post->threadid)->first();
+            if (! $thread || (int) $thread->visible !== 1) {
                 return false;
             }
 
             $post->visible = 1;
             $post->save();
 
-            Thread::whereKey($post->threadid)->update([
-                'replycount' => DB::raw('replycount + 1'),
-                'lastpost' => (int) $post->dateline,
-            ]);
+            app(ThreadCounterService::class)->rebuild((int) $post->threadid);
+            $postThread = $thread;
+            if ($postThread) {
+                app(ForumCounterService::class)->rebuild((int) $postThread->forumid);
+            }
 
             if ($post->userid) {
                 User::whereKey($post->userid)->increment('posts');

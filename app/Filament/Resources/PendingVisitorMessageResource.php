@@ -33,6 +33,8 @@ class PendingVisitorMessageResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 Tables\Columns\TextColumn::make('vmid')
                     ->label('ID')
@@ -80,7 +82,6 @@ class PendingVisitorMessageResource extends Resource
                         'content' => $record->parsed_content,
                     ])),
 
-                Tables\Actions\DeleteAction::make()->label('حذف'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

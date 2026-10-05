@@ -145,7 +145,7 @@
             {{-- Pagination (simplePaginate) --}}
             @if($results->hasPages())
                 <div class="d-flex justify-content-center mt-4">
-                    {{ $results->links() }}
+                    {{ $results->links('vendor.pagination.forum-pages') }}
                 </div>
             @endif
         @endif

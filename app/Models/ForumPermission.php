@@ -9,6 +9,8 @@ class ForumPermission extends Model
     public const CAN_VIEW = 1;
     public const CAN_POST_NEW = 32;
     public const CAN_REPLY = 64;
+    public const CAN_DELETE_THREAD = 512;
+    public const CAN_MOVE_THREAD = 2048;
 
     protected $table = 'forumpermission';
     protected $primaryKey = 'forumpermissionid';
@@ -50,7 +52,7 @@ class ForumPermission extends Model
 
     private static function allows(int $forumid, int $usergroupid, int $permissionBit): bool
     {
-        if (in_array($usergroupid, config('forum.admin_usergroup_ids', [5, 6, 7]), true)) {
+        if ($usergroupid === (int) config('forum.administrator_usergroup_id', 6)) {
             return true;
         }
 

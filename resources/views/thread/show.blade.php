@@ -52,6 +52,20 @@
 
 @section('content')
     <div class="container mt-4">
+        @php
+            $permissionService = app(\App\Services\ModerationPermissionService::class);
+            $viewer = auth()->user();
+            $canManageThread = $viewer && $permissionService->canManageForum($viewer, (int) $thread->forumid);
+            $canMoveThread = $viewer && $permissionService->canMoveThread($viewer, $thread);
+            $canDeleteThread = $viewer && $permissionService->canSoftDeleteThread($viewer, $thread);
+            $canSticky = $viewer && $permissionService->canMergeThread($viewer, $thread);
+            $canOpenClose = $viewer && $permissionService->canOpenClose($viewer, $thread);
+            $canMerge = $viewer && $permissionService->canMergeThread($viewer, $thread);
+            $canModeratePosts = $viewer && ($permissionService->isAdministrator($viewer)
+                || $permissionService->hasModeratorBit($viewer, (int) $thread->forumid, \App\Support\VBulletinModeratorPermissions::MODERATE_POSTS));
+            $canEditThread = $viewer && $viewer->can('update', $thread);
+            $isAdmin = $viewer && $permissionService->isAdministrator($viewer);
+        @endphp
 
         {{-- Breadcrumb --}}
         <div class="breadcrumb-modern">
@@ -70,7 +84,7 @@
         @auth
             @if((int) $thread->visible !== 1)
                 @php
-                    $isStaff = auth()->user()->is_admin || auth()->user()->is_moderator;
+                    $isStaff = $canModeratePosts;
                 @endphp
                 <div class="glass-panel p-3 mb-4 border-warning border-opacity-50" style="background: rgba(255,179,0,.08)">
                     <div class="d-flex align-items-center gap-2 flex-wrap">
@@ -123,7 +137,7 @@
                     <div class="flex-grow-1">
                         <h1 class="h3 fw-bold mb-2" id="thread-title-display">{{ $thread->title }}</h1>
                         @auth
-                            @if(auth()->user()->is_admin || auth()->user()->is_moderator || auth()->id() === $thread->postuserid)
+                            @if($canEditThread)
                                 <input type="text" id="thread-title-input" class="form-control mb-2 fw-bold d-none bg-dark text-light border-secondary" value="{{ $thread->title }}">
                             @endif
                         @endauth
@@ -155,25 +169,46 @@
 
                         {{-- Moderation Tools (Admins, Mods or Author) --}}
                         @auth
-                            @if(auth()->user()->is_admin || auth()->user()->is_moderator || auth()->id() === $thread->postuserid)
+                            @if($canEditThread || $canManageThread || $canDeleteThread || $canSticky || $canOpenClose || $canMerge)
                                 <div class="dropdown mt-2">
                                     <button class="btn btn-sm btn-outline-accent dropdown-toggle" type="button" id="modMenuButton"
                                         data-bs-toggle="dropdown" aria-expanded="false">
                                         <i class="fas fa-cog"></i> إدارة الموضوع
                                     </button>
                                     <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="modMenuButton">
-                                        <li><a class="dropdown-item" href="javascript:void(0);" 
+                                        @if(!$thread->visible && $canModeratePosts)
+                                            <li><a class="dropdown-item text-success" href="#" data-moderate="thread-approve" data-id="{{ $thread->threadid }}" data-url="{{ route('moderation.thread.approve', $thread->threadid) }}" data-redirect-on-success="{{ $thread->url }}"><i class="fas fa-check me-2"></i> الموافقة ونشر</a></li>
+                                            <li><a class="dropdown-item text-danger" href="#" data-moderate="thread-reject" data-id="{{ $thread->threadid }}" data-url="{{ route('moderation.thread.reject', $thread->threadid) }}" data-redirect-on-success="{{ $thread->forum->url ?? route('home') }}"><i class="fas fa-times me-2"></i> رفض وحذف</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                        @endif
+                                        @if($canEditThread)<li><a class="dropdown-item" href="javascript:void(0);" 
                                                 onclick="if(window.AppEditor){window.AppEditor.startThreadEdit('{{ $thread->threadid }}','{{ $thread->firstPost->postid ?? ($posts->isNotEmpty() ? $posts->first()->postid : '') }}','{{ url('/thread') }}/{{ $thread->threadid }}/ajax/edit',window._editorUploadUrl);}else{alert('المحرر غير جاهز');}">
-                                                <i class="fas fa-edit text-primary me-2"></i> تعديل الموضوع</a></li>
-                                        <li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                                <i class="fas fa-edit text-primary me-2"></i> تعديل الموضوع</a></li>@endif
+                                        @if($canMoveThread)<li><a class="dropdown-item" href="#" data-bs-toggle="modal"
                                                 data-bs-target="#moveThreadModal"><i
-                                                    class="fas fa-exchange-alt text-warning me-2"></i> نقل الموضوع</a></li>
+                                                    class="fas fa-exchange-alt text-warning me-2"></i> نقل الموضوع</a></li>@endif
+                                        @if($canMerge)<li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                                data-bs-target="#mergeThreadModal"><i
+                                                    class="fas fa-code-branch text-info me-2"></i> دمج في موضوع آخر</a></li>@endif
+                                        @if($canModeratePosts)<li><a class="dropdown-item" href="#" data-bs-toggle="modal"
+                                                data-bs-target="#movePostsModal"><i
+                                                    class="fas fa-share-square text-secondary me-2"></i> نقل الردود المحددة</a></li>@endif
+                                        @if($canSticky)<li><a class="dropdown-item" href="#"
+                                                data-thread-state-url="{{ route('thread.ajax.sticky', $thread->threadid) }}"
+                                                data-thread-state='{"sticky":{{ $thread->sticky ? 'false' : 'true' }}}'>
+                                                <i class="fas fa-thumbtack text-warning me-2"></i> {{ $thread->sticky ? 'إلغاء التثبيت' : 'تثبيت' }}</a></li>@endif
+                                        @if($canOpenClose)<li><a class="dropdown-item" href="#"
+                                                data-thread-state-url="{{ route('thread.ajax.open', $thread->threadid) }}"
+                                                data-thread-state='{"open":{{ $thread->open ? 'false' : 'true' }}}'>
+                                                <i class="fas {{ $thread->open ? 'fa-lock' : 'fa-unlock' }} text-success me-2"></i> {{ $thread->open ? 'إغلاق' : 'فتح' }}</a></li>@endif
                                         <li>
                                             <hr class="dropdown-divider">
                                         </li>
-                                        <li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal"
+                                        @if($canDeleteThread)<li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal"
                                                 data-bs-target="#deleteThreadModal"><i class="fas fa-trash-alt me-2"></i> حذف
-                                                الموضوع</a></li>
+                                                 الموضوع</a></li>@endif
+                                        @if($isAdmin)<li><a class="dropdown-item text-danger" href="#" data-bs-toggle="modal"
+                                                data-bs-target="#hardDeleteThreadModal"><i class="fas fa-fire me-2"></i> حذف فعلي (نهائي)</a></li>@endif
                                     </ul>
                                 </div>
                             @endif
@@ -184,9 +219,6 @@
         </div>
 
 {{-- Posts / الردود --}}
-        @php
-            $canModeratePosts = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
-        @endphp
         <div id="posts-list" data-page="{{ $posts->currentPage() }}">
         @foreach($posts as $index => $post)
             @include('thread.partials.post', [
@@ -195,6 +227,7 @@
                 'postNumber' => ($posts->currentPage() - 1) * $posts->perPage() + $index + 1,
                 'isFirst' => $loop->first && $posts->currentPage() == 1,
                 'isStaff' => $canModeratePosts,
+                'selectable' => $canModeratePosts,
             ])
         @endforeach
         </div>
@@ -247,7 +280,7 @@
 
         {{-- Pagination --}}
         <div class="d-flex justify-content-center mt-4">
-            {{ $posts->links() }}
+            {{ $posts->links('vendor.pagination.forum-pages') }}
         </div>
 
         {{-- Thread Navigation (Previous / Next) --}}
@@ -287,7 +320,8 @@
 
         {{-- Modals for Thread Moderation --}}
         @auth
-            @if(auth()->user()->is_admin || auth()->user()->is_moderator || auth()->id() === $thread->postuserid)
+            @if($canMoveThread || $canDeleteThread || $canMerge || $canModeratePosts || $isAdmin)
+                @if($canMoveThread)
                 <!-- Move Modal -->
                 <div class="modal fade" id="moveThreadModal" tabindex="-1" aria-labelledby="moveThreadModalLabel"
                     aria-hidden="true">
@@ -317,7 +351,37 @@
                         </div>
                     </div>
                 </div>
+                @endif
 
+                @if($canMerge)
+                <!-- Merge Modal -->
+                <div class="modal fade" id="mergeThreadModal" tabindex="-1" aria-labelledby="mergeThreadModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content glass-panel border-0">
+                            <div class="modal-header border-bottom border-light">
+                                <h5 class="modal-title fw-bold text-info"><i class="fas fa-code-branch"></i> دمج في موضوع آخر</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted-custom small">سيتم نقل جميع ردود هذا الموضوع إلى الموضوع الهدف ثم إخفاء هذا الموضوع (حذف بسيط). لا يمكن التراجع عن هذه العملية.</p>
+                                <form id="formMergeThread" novalidate>
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">الموضوع الهدف (رقم الموضوع)</label>
+                                        <input type="number" class="form-control bg-dark text-light border-secondary" id="mergeTargetId" min="1" placeholder="أدخل رقم الموضوع الهدف" required>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer border-top border-light">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                <button type="button" class="btn btn-info" id="btnConfirmMerge">دمج</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if($canDeleteThread)
                 <!-- Delete Modal -->
                 <div class="modal fade" id="deleteThreadModal" tabindex="-1" aria-labelledby="deleteThreadModalLabel"
                     aria-hidden="true">
@@ -329,16 +393,67 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                هل أنت متأكد من رغبتك في حذف هذا الموضوع نهائياً؟ لا يمكن التراجع عن هذا الإجراء وسيتم حذف كافة
-                                الردود المرتبطة.
+                                سيتم حذف الموضوع حذفاً بسيطاً مع الاحتفاظ به في قاعدة البيانات وإمكانية استعادته.
                             </div>
                             <div class="modal-footer border-top border-light">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
-                                <button type="button" class="btn btn-danger" id="btnConfirmDelete">نعم، احذف نهائياً</button>
+                                <button type="button" class="btn btn-danger" id="btnConfirmDelete">حذف بسيط</button>
                             </div>
                         </div>
                     </div>
                 </div>
+                @endif
+
+                @if($canModeratePosts)
+                <!-- Move Posts Modal -->
+                <div class="modal fade" id="movePostsModal" tabindex="-1" aria-labelledby="movePostsModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content glass-panel border-0">
+                            <div class="modal-header border-bottom border-light">
+                                <h5 class="modal-title fw-bold text-secondary"><i class="fas fa-share-square"></i> نقل الردود المحددة</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-muted-custom small mb-2">حدّد الردود من بطاقات الردود بالأعلى ثم أدخل رقم الموضوع الهدف.</p>
+                                <div class="mb-3">
+                                    <label class="form-label fw-bold" for="movePostsTargetThread">الموضوع الهدف (رقم الموضوع)</label>
+                                    <input type="number" min="1" class="form-control bg-dark text-light border-secondary" id="movePostsTargetThread" placeholder="أدخل رقم الموضوع الهدف">
+                                </div>
+                                <div class="small text-muted-custom">الردود المحددة: <span id="movePostsCount" class="fw-bold">0</span></div>
+                            </div>
+                            <div class="modal-footer border-top border-light">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                <button type="button" class="btn btn-secondary" id="btnConfirmMovePosts">نقل الردود</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+                @if($isAdmin)
+                <!-- Hard Delete Modal -->
+                <div class="modal fade" id="hardDeleteThreadModal" tabindex="-1" aria-labelledby="hardDeleteThreadModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content glass-panel border-0">
+                            <div class="modal-header border-bottom border-light">
+                                <h5 class="modal-title fw-bold text-danger"><i class="fas fa-fire"></i> حذف فعلي نهائي</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-danger small">سيتم حذف الموضوع وكل ردوده ومرفقاته نهائيًا من قاعدة البيانات. لا يمكن التراجع.</p>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="hardDeleteConfirm">
+                                    <label class="form-check-label" for="hardDeleteConfirm">أُقرّ بأنني أريد الحذف النهائي</label>
+                                </div>
+                            </div>
+                            <div class="modal-footer border-top border-light">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                                <button type="button" class="btn btn-danger" id="btnConfirmHardDelete">حذف نهائي</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                @endif
             @endif
         @endauth
 
@@ -429,6 +544,22 @@
                     });
                 }
 
+                document.querySelectorAll('[data-thread-state-url]').forEach(function (button) {
+                    button.addEventListener('click', async function () {
+                        const url = this.getAttribute('data-thread-state-url');
+                        const payload = JSON.parse(this.getAttribute('data-thread-state') || '{}');
+                        this.disabled = true;
+                        try {
+                            const res = await doFetch(url, payload);
+                            if (res.success) window.location.reload();
+                            else throw new Error(res.message || 'تعذر تنفيذ العملية.');
+                        } catch (error) {
+                            alert(error.message || 'فشل تنفيذ العملية.');
+                            this.disabled = false;
+                        }
+                    });
+                });
+
                 const btnConfirmDelete = document.getElementById('btnConfirmDelete');
                 if (btnConfirmDelete) {
                     btnConfirmDelete.addEventListener('click', async function () {
@@ -441,7 +572,85 @@
                         } catch (error) {
                             alert('فشل الحذف.');
                             btn.disabled = false;
-                            btn.innerHTML = 'نعم، احذف نهائياً';
+                            btn.innerHTML = 'حذف بسيط';
+                        }
+                    });
+                }
+
+                const btnConfirmMerge = document.getElementById('btnConfirmMerge');
+                if (btnConfirmMerge) {
+                    btnConfirmMerge.addEventListener('click', async function () {
+                        const targetId = document.getElementById('mergeTargetId').value;
+                        const btn = this;
+                        if (!targetId || parseInt(targetId, 10) <= 0) {
+                            alert('أدخل رقم الموضوع الهدف.');
+                            return;
+                        }
+                        btn.disabled = true;
+                        btn.innerHTML = 'جاري الدمج... <i class="fas fa-spinner fa-spin ms-1"></i>';
+                        try {
+                            const res = await doFetch('{{ route('thread.ajax.merge', $thread->threadid) }}', { target_thread_id: targetId });
+                            if (res.success) { window.location.href = res.redirect; }
+                            else throw new Error(res.message || 'تعذر الدمج.');
+                        } catch (error) {
+                            alert(error.message || 'فشل الدمج.');
+                            btn.disabled = false;
+                            btn.innerHTML = 'دمج';
+                        }
+                    });
+                }
+
+                /* نقل الردود المحددة */
+                const btnConfirmMovePosts = document.getElementById('btnConfirmMovePosts');
+                if (btnConfirmMovePosts) {
+                    const updateMoveCount = function () {
+                        const el = document.getElementById('movePostsCount');
+                        if (el) el.textContent = String(document.querySelectorAll('.move-post-checkbox:checked').length);
+                    };
+                    document.addEventListener('change', function (e) {
+                        if (e.target && e.target.classList && e.target.classList.contains('move-post-checkbox')) updateMoveCount();
+                    });
+                    const movePostsModal = document.getElementById('movePostsModal');
+                    if (movePostsModal) movePostsModal.addEventListener('show.bs.modal', updateMoveCount);
+
+                    btnConfirmMovePosts.addEventListener('click', async function () {
+                        const btn = this;
+                        const targetInput = document.getElementById('movePostsTargetThread');
+                        const targetId = targetInput ? parseInt(targetInput.value, 10) : 0;
+                        const ids = Array.from(document.querySelectorAll('.move-post-checkbox:checked')).map(function (b) { return Number(b.value); });
+                        if (!ids.length) { alert('حدّد ردًا واحدًا على الأقل.'); return; }
+                        if (!targetId) { alert('أدخل رقم الموضوع الهدف.'); return; }
+                        btn.disabled = true;
+                        btn.innerHTML = 'جاري النقل... <i class="fas fa-spinner fa-spin ms-1"></i>';
+                        try {
+                            const res = await doFetch('{{ route('thread.ajax.move-posts', $thread->threadid) }}', { post_ids: ids, target_thread_id: targetId });
+                            if (res.success) { window.location.href = res.redirect; }
+                            else throw new Error(res.message || 'تعذر نقل الردود.');
+                        } catch (error) {
+                            alert(error.message || 'فشل نقل الردود.');
+                            btn.disabled = false;
+                            btn.innerHTML = 'نقل الردود';
+                        }
+                    });
+                }
+
+                /* الحذف الفعلي (الأدمن فقط) */
+                const btnConfirmHardDelete = document.getElementById('btnConfirmHardDelete');
+                if (btnConfirmHardDelete) {
+                    btnConfirmHardDelete.addEventListener('click', async function () {
+                        const btn = this;
+                        const confirmBox = document.getElementById('hardDeleteConfirm');
+                        if (!confirmBox || !confirmBox.checked) { alert('أكّد الحذف النهائي أولًا.'); return; }
+                        btn.disabled = true;
+                        btn.innerHTML = 'جاري الحذف... <i class="fas fa-spinner fa-spin ms-1"></i>';
+                        try {
+                            const res = await doFetch('{{ route('thread.ajax.hard-delete', $thread->threadid) }}', { confirmed: true });
+                            if (res.success) { window.location.href = res.redirect; }
+                            else throw new Error(res.message || 'تعذر الحذف.');
+                        } catch (error) {
+                            alert(error.message || 'فشل الحذف النهائي.');
+                            btn.disabled = false;
+                            btn.innerHTML = 'حذف نهائي';
                         }
                     });
                 }

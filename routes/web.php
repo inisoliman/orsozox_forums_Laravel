@@ -87,6 +87,10 @@ Route::middleware(['auth', ThrottleRequests::class . ':30,1'])->group(function (
     Route::post('/moderation/post/{id}/reject', [\App\Http\Controllers\ModerationController::class, 'rejectPost'])->name('moderation.post.reject')->where('id', '[0-9]+');
     Route::post('/moderation/message/{id}/approve', [\App\Http\Controllers\ModerationController::class, 'approveVisitorMessage'])->name('moderation.message.approve')->where('id', '[0-9]+');
     Route::post('/moderation/message/{id}/reject', [\App\Http\Controllers\ModerationController::class, 'rejectVisitorMessage'])->name('moderation.message.reject')->where('id', '[0-9]+');
+    Route::post('/moderation/threads/bulk-move', [\App\Http\Controllers\ModerationBulkController::class, 'move'])->name('moderation.threads.bulk-move');
+    Route::post('/moderation/threads/bulk-action', [\App\Http\Controllers\ModerationBulkController::class, 'action'])->name('moderation.threads.bulk-action');
+    Route::post('/moderation/threads/merge', [\App\Http\Controllers\ModerationBulkController::class, 'merge'])->name('moderation.threads.merge');
+    Route::post('/moderation/posts/move', [\App\Http\Controllers\ModerationBulkController::class, 'movePosts'])->name('moderation.posts.move');
 });
 
 // البحث
@@ -106,7 +110,31 @@ Route::post('/login', [AuthController::class, 'login'])
     ->name('login.submit')
     ->middleware(ThrottleRequests::class . ':10,1');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middleware('auth');
-Route::get('/register', [AuthController::class, 'registerClosed'])->name('register');
+Route::get('/register', [\App\Http\Controllers\RegistrationController::class, 'show'])->name('register');
+Route::post('/register', [\App\Http\Controllers\RegistrationController::class, 'store'])
+    ->name('register.submit')
+    ->middleware(ThrottleRequests::class . ':10,10');
+
+// استعادة كلمة المرور
+Route::get('/forgot-password', [\App\Http\Controllers\PasswordResetController::class, 'showForgotForm'])->name('password.request');
+Route::post('/forgot-password', [\App\Http\Controllers\PasswordResetController::class, 'sendResetLink'])
+    ->name('password.email')
+    ->middleware(ThrottleRequests::class . ':5,10');
+Route::get('/reset-password/{token}', [\App\Http\Controllers\PasswordResetController::class, 'showResetForm'])->name('password.reset');
+Route::post('/reset-password', [\App\Http\Controllers\PasswordResetController::class, 'reset'])
+    ->name('password.update')
+    ->middleware(ThrottleRequests::class . ':5,10');
+
+// إعدادات الحساب (تغيير كلمة المرور والبريد) — تتطلب تسجيل الدخول
+Route::get('/account/settings', [\App\Http\Controllers\AccountController::class, 'edit'])
+    ->name('account.settings')
+    ->middleware('auth');
+Route::post('/account/password', [\App\Http\Controllers\AccountController::class, 'updatePassword'])
+    ->name('account.password')
+    ->middleware(['auth', ThrottleRequests::class . ':10,10']);
+Route::post('/account/email', [\App\Http\Controllers\AccountController::class, 'updateEmail'])
+    ->name('account.email')
+    ->middleware(['auth', ThrottleRequests::class . ':10,10']);
 
 
 // خرائط الموقع — Sitemap Index + Sub-sitemaps
@@ -154,6 +182,18 @@ Route::post('/thread/{id}/reply', [\App\Http\Controllers\ReplyController::class,
     Route::post('/thread/{id}/ajax/delete', [\App\Http\Controllers\Api\ThreadActionController::class, 'destroy'])
         ->name('thread.ajax.delete')
         ->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/ajax/restore', [\App\Http\Controllers\Api\ThreadActionController::class, 'restore'])
+        ->name('thread.ajax.restore')->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/ajax/hard-delete', [\App\Http\Controllers\Api\ThreadActionController::class, 'hardDelete'])
+        ->name('thread.ajax.hard-delete')->middleware(ThrottleRequests::class . ':10,1');
+    Route::post('/thread/{id}/ajax/sticky', [\App\Http\Controllers\Api\ThreadActionController::class, 'sticky'])
+        ->name('thread.ajax.sticky')->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/ajax/open', [\App\Http\Controllers\Api\ThreadActionController::class, 'open'])
+        ->name('thread.ajax.open')->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/ajax/merge', [\App\Http\Controllers\Api\ThreadActionController::class, 'merge'])
+        ->name('thread.ajax.merge')->middleware(ThrottleRequests::class . ':30,1');
+    Route::post('/thread/{id}/ajax/move-posts', [\App\Http\Controllers\Api\ThreadActionController::class, 'movePosts'])
+        ->name('thread.ajax.move-posts')->middleware(ThrottleRequests::class . ':30,1');
 });
 
 // تحويل الروابط الخارجية (Redirector)

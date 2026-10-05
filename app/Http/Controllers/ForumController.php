@@ -7,6 +7,7 @@ use App\Models\Forum;
 use App\Models\Thread;
 use App\Models\ForumPermission;
 use Illuminate\Support\Facades\Cache;
+use App\Services\ModerationPermissionService;
 
 class ForumController extends Controller
 {
@@ -41,8 +42,11 @@ class ForumController extends Controller
             ], 301);
         }
 
-        $isStaff = auth()->check() && (auth()->user()->is_admin || auth()->user()->is_moderator);
-        $isOwner = auth()->check();
+        $viewer = auth()->user();
+        $permissionService = app(ModerationPermissionService::class);
+        $isStaff = $viewer && ($permissionService->canManageForum($viewer, (int) $id)
+            || $permissionService->hasModeratorBit($viewer, (int) $id, \App\Support\VBulletinModeratorPermissions::MODERATE_POSTS));
+        $isOwner = (bool) $viewer;
 
         // المواضيع: المرئية دائماً + قيد المراجعة (للمشرف فقط، أو صاحب الموضوع لمواضيعه فقط)
         // تُدمج في القائمة نفسها بترتيب زمني طبيعي مثل vBulletin
@@ -62,8 +66,8 @@ class ForumController extends Controller
             ->orderBy('sticky', 'desc')
             ->orderBy('dateline', 'desc')
             ->with(['author'])
-            // simplePaginate avoids an extra COUNT(*) per forum page under crawler load.
-            ->simplePaginate(20);
+            // paginate يوفّر العدد الإجمالي لعرض أرقام الصفحات ومربع الانتقال المباشر.
+            ->paginate(20);
 
         return view('forum.show', compact('forum', 'threads'));
     }

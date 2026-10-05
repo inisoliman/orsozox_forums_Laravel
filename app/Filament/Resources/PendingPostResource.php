@@ -6,6 +6,8 @@ use App\Filament\Resources\PendingPostResource\Pages;
 use App\Models\Post;
 use App\Models\Thread;
 use App\Services\ModerationService;
+use App\Services\ModerationActionService;
+use App\Services\ModerationPermissionService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -43,6 +45,8 @@ class PendingPostResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(10)
             ->columns([
                 Tables\Columns\TextColumn::make('postid')
                     ->label('ID')
@@ -101,7 +105,23 @@ class PendingPostResource extends Resource
                         'content' => $record->parsed_content,
                     ])),
 
-                Tables\Actions\DeleteAction::make()->label('حذف'),
+                Tables\Actions\Action::make('soft_delete')
+                    ->label('رفض وحذف بسيط')
+                    ->icon('heroicon-o-trash')
+                    ->color('danger')
+                    ->visible(fn (Post $record) => app(ModerationPermissionService::class)->can(auth()->user(), 'soft_delete_post', $record->thread, $record))
+                    ->requiresConfirmation()
+                    ->form([
+                        \Filament\Forms\Components\Textarea::make('reason')
+                            ->label('سبب الرفض')
+                            ->default('رفض من المراجعة')
+                            ->maxLength(125)
+                            ->required(),
+                    ])
+                    ->action(function (Post $record, array $data) {
+                        app(ModerationActionService::class)->softDeletePost($record, auth()->user(), $data['reason']);
+                        Notification::make()->title('تم نقل الرد إلى المحذوفات')->success()->send();
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

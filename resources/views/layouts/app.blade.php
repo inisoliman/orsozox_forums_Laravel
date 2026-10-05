@@ -175,6 +175,8 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" href="{{ route('user.show', Auth::user()->userid) }}"><i
                                         class="fas fa-user me-2"></i> ملفي الشخصي</a></li>
+                            <li><a class="dropdown-item" href="{{ route('account.settings') }}"><i
+                                        class="fas fa-user-cog me-2"></i> إعدادات الحساب</a></li>
                             @if(Auth::user()->is_admin)
                                 <li><a class="dropdown-item" href="{{ url('admin') }}"><i class="fas fa-cogs me-2"></i> لوحة
                                         الإدارة</a></li>
@@ -194,8 +196,10 @@
                 @else
                     <a href="{{ route('login', ['redirect' => request()->fullUrl()]) }}"
                         class="btn btn-outline-primary rounded-pill btn-sm px-3 ms-2">دخول</a>
-                    <a href="{{ route('register') }}"
-                        class="btn btn-primary rounded-pill btn-sm px-3 d-none d-md-block">تسجيل</a>
+                    @if(\App\Http\Controllers\RegistrationController::isEnabled())
+                        <a href="{{ route('register') }}"
+                            class="btn btn-primary rounded-pill btn-sm px-3 d-none d-md-block">تسجيل</a>
+                    @endif
                 @endauth
 
                 <button class="navbar-toggler ms-2" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav">
@@ -392,6 +396,51 @@
 
     {{-- مراجعة المحتوى من داخل المنتدى (أزرار data-moderate) --}}
     <script src="{{ asset('js/moderation.js') }}?v={{ time() }}" defer></script>
+
+    {{-- الانتقال المباشر إلى رقم صفحة — معالج واحد مفوَّض لكل ترقيمات الصفحة --}}
+    <script>
+        (function () {
+            function currentMax(box) {
+                var max = parseInt(box.getAttribute('data-last'), 10);
+                return isNaN(max) ? 0 : max;
+            }
+            function goToPage(box) {
+                if (!box) return;
+                var base = box.getAttribute('data-pagination-base');
+                var input = box.querySelector('.forum-goto-input');
+                if (!base || !input) return;
+                var max = currentMax(box);
+                var page = parseInt(input.value, 10);
+                if (isNaN(page) || page < 1 || (max && page > max)) {
+                    var msg = 'أدخل رقم صفحة صحيح' + (max ? ' بين 1 و ' + max : '') + '.';
+                    if (window.AppEditor && window.AppEditor.showToast) {
+                        window.AppEditor.showToast('تنبيه', msg, 'error');
+                    } else {
+                        alert(msg);
+                    }
+                    return;
+                }
+                try {
+                    var url = new URL(base, window.location.href);
+                    url.searchParams.set('page', String(page));
+                    window.location.href = url.toString();
+                } catch (err) {
+                    window.location.href = base.split('?')[0] + '?page=' + page;
+                }
+            }
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('.forum-goto-btn');
+                if (!btn) return;
+                goToPage(btn.closest('.forum-pagination'));
+            });
+            document.addEventListener('keydown', function (e) {
+                if (e.key !== 'Enter' || !e.target || !e.target.classList) return;
+                if (!e.target.classList.contains('forum-goto-input')) return;
+                e.preventDefault();
+                goToPage(e.target.closest('.forum-pagination'));
+            });
+        })();
+    </script>
 
     {{-- Theme Logic --}}
     <script>

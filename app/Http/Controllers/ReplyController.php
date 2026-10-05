@@ -121,8 +121,9 @@ class ReplyController extends Controller
             403
         );
 
-        $isModerator = in_array($usergroupId, config('forum.admin_usergroup_ids', [5, 6, 7]), true);
-        abort_unless($thread->open || $isModerator, 423, 'الموضوع مغلق.');
+        $canManage = app(\App\Services\ModerationPermissionService::class)
+            ->canManageForum(auth()->user(), (int) $thread->forumid);
+        abort_unless($thread->open || $canManage, 423, 'الموضوع مغلق.');
     }
 
 }

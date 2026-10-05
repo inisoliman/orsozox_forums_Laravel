@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Models\User;
 use App\Models\Thread;
 use Illuminate\Auth\Access\HandlesAuthorization;
+use App\Services\ModerationPermissionService;
 
 class ThreadPolicy
 {
@@ -12,6 +13,10 @@ class ThreadPolicy
 
     public function update(User $user, Thread $thread)
     {
-        return $user->is_admin || $user->is_moderator || $user->userid === $thread->postuserid;
+        if ($user->userid === (int) $thread->postuserid) {
+            return (int) $thread->visible !== 2;
+        }
+
+        return app(ModerationPermissionService::class)->can($user, 'edit_thread', $thread);
     }
 }

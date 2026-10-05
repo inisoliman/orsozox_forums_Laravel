@@ -36,13 +36,17 @@ class HtmlMinifyMiddleware
             return false;
         }
 
-        $contentType = $response->headers->get('Content-Type');
-
-        // تطبيق التصغير فقط على ملفات HTML الصافية
-        if ($contentType && str_contains($contentType, 'text/html')) {
-            return true;
+        // لا تُصغّر لوحة التحكم (Filament/Livewire) ولا مسارات Livewire إطلاقاً؛
+        // فتصغير HTML هناك قد يكسر سكربتات Alpine/Livewire ويُعطّل الترقيم والإجراءات.
+        $path = ltrim(request()->path(), '/');
+        if (str_starts_with($path, 'admin') || str_starts_with($path, 'livewire')) {
+            return false;
         }
 
+        // لا تُصغّر صفحات المنتدى العامة إطلاقاً.
+        // السبب المُثبت: صفحات المنتدى تحتوي سكربتات مضمَّنة بتعليقات عربية،
+        // وCloudflare Auto-Minify يدمج أسطر السكربتات، فتعليقات "//" تبتلع بقية الكود.
+        // التصغير هنا يضاعف الخطر بلا فائدة تُذكر لهذا الموقع.
         return false;
     }
 
@@ -51,11 +55,13 @@ class HtmlMinifyMiddleware
      */
     protected function minify(string $html): string
     {
+        // علم u إلزامي: بدونه تفشل المطابقة على محتوى UTF-8 العربي،
+        // فيُرجع preg_replace القيمة null ويُمسح الـ HTML كاملًا (صفحة بيضاء).
         $search = [
-            '/\>[^\S ]+/s',     // Strip whitespaces after tags, except space
-            '/[^\S ]+\</s',     // Strip whitespaces before tags, except space
-            '/(\s)+/s',         // Shorten multiple whitespace sequences
-            '/<!--(?!\s*(?:\[if [^\]]+]|<!|>))(?:(?!-->).)*-->/s', // Remove HTML comments (except IE conditionals)
+            '/\>[^\S ]+/su',     // Strip whitespaces after tags, except space
+            '/[^\S ]+\</su',     // Strip whitespaces before tags, except space
+            '/(\s)+/su',         // Shorten multiple whitespace sequences
+            '/<!--(?!\s*(?:\[if [^\]]+]|<!|>))(?:(?!-->).)*-->/su', // Remove HTML comments (except IE conditionals)
         ];
 
         $replace = [
@@ -66,12 +72,13 @@ class HtmlMinifyMiddleware
         ];
 
         // حماية أكواد الـ CSS و الـ JS من التلف أثناء الضغط
-        $html = preg_replace_callback('/<(script|style|textarea|pre)[^>]*>.*?<\/\1>/is', function ($matches) {
+        $html = preg_replace_callback('/<(script|style|textarea|pre)[^>]*>.*?<\/\1>/isu', function ($matches) {
             return $matches[0];
         }, $html);
 
         $minified = preg_replace($search, $replace, $html);
 
-        return $minified;
+        // لا تُهمل نتيجة null: إن فشل التصغير لأي سبب أعِد الأصل بلا تغيير.
+        return $minified ?? $html;
     }
 }

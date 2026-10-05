@@ -111,11 +111,29 @@ class Thread extends Model
         return $query->where('visible', 1);
     }
 
+    public function scopePublished($query)
+    {
+        return $query->where('visible', 1);
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('visible', 0);
+    }
+
+    public function scopeSoftDeleted($query)
+    {
+        return $query->where('visible', 2);
+    }
+
     public function scopePubliclyIndexable($query)
     {
         return $query->visible()->whereHas('forum', function ($forumQuery) {
             $forumQuery->active()->publiclyAccessible();
-        });
+        })->when(
+            ($excluded = \App\Models\SiteSetting::excludedSitemapForumIds()) !== [],
+            fn ($q) => $q->whereNotIn('forumid', $excluded)
+        );
     }
 
     /**

@@ -9,9 +9,8 @@
 return [
     'guest_usergroup_id' => 1,
 
-    /*
-     * Admin and moderator usergroup IDs (vBulletin legacy).
-     * Users in these groups are considered super-admin in Filament.
-     */
-    'admin_usergroup_ids' => [5, 6, 7],
+    'administrator_usergroup_id' => 6,
+    'super_moderator_usergroup_id' => 5,
+    'moderator_usergroup_id' => 7,
+    'moderator_usergroup_ids' => [5, 6, 7],
 ];
