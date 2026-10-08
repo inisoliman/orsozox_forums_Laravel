@@ -58,9 +58,9 @@
                         <select name="forumid" class="form-select form-control-dark">
                             <option value="">جميع الأقسام</option>
                             @foreach($forums ?? [] as $forum)
-                                <option value="{{ $forum->forumid }}"
-                                    {{ request('forumid') == $forum->forumid ? 'selected' : '' }}>
-                                    {{ $forum->title }}
+                                <option value="{{ $forum['forumid'] }}"
+                                    {{ request('forumid') == $forum['forumid'] ? 'selected' : '' }}>
+                                    {{ $forum['title'] }}
                                 </option>
                             @endforeach
                         </select>

@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Create Iframe
         const iframe = document.createElement('iframe');
+        iframe.className = 'yt-lite-frame';
         iframe.setAttribute('src', `https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0`);
         iframe.setAttribute('frameborder', '0');
         iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');

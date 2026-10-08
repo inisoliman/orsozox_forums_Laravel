@@ -94,10 +94,87 @@ class Forum extends Model
 
     /**
      * ترتيب حسب displayorder
+     *
+     * vBulletin يُرتّب الأقسام بـ displayorder ثم forumid. عند تساوي
+     * displayorder (وهو شائع جداً) لا يكون ترتيب MySQL مضموناً، لذلك
+     * نضيف forumid كمرتّب ثانوي لضمان ترتيب ثابت ومطابق للوحة التحكم.
      */
     public function scopeOrdered($query)
     {
-        return $query->orderBy('displayorder', 'asc');
+        return $query->orderBy('displayorder', 'asc')
+            ->orderBy('forumid', 'asc');
+    }
+
+    /**
+     * قائمة مسطّحة مرتّبة هرميّاً (قسم رئيسي ثم أبناؤه ثم أحفاده) — للقوائم المنسدلة.
+     *
+     * تعيد Collection من مصفوفات: ['forumid','title','depth','label']
+     * ليتطابق ترتيب القوائم المنسدلة مع شجرة الصفحة الرئيسية.
+     *
+     * @param callable|null $filter دالة اختيارية تُرجع true لإدراج القسم (مثل فحص صلاحية الإنشاء)
+     * @return \Illuminate\Support\Collection<int, array{forumid:int,title:string,depth:int,label:string}>
+     */
+    public static function flatOrderedTree(?callable $filter = null): \Illuminate\Support\Collection
+    {
+        $forums = static::active()
+            ->ordered()
+            ->get(['forumid', 'title', 'parentid', 'displayorder', 'options']);
+
+        $byParent = [];
+        foreach ($forums as $forum) {
+            $parentId = (int) ($forum->parentid ?? 0);
+            if ($parentId < 0) {
+                $parentId = 0; // -1 تعني جذراً في vBulletin
+            }
+            $byParent[$parentId][] = $forum;
+        }
+
+        $flat = [];
+        $visited = [];
+
+        $walk = function (int $parentId, int $depth) use (&$walk, &$flat, &$visited, $byParent, $filter) {
+            if (empty($byParent[$parentId])) {
+                return;
+            }
+            foreach ($byParent[$parentId] as $forum) {
+                if (isset($visited[$forum->forumid])) {
+                    continue; // حماية من أي حلقة parentid تالفة
+                }
+                $visited[$forum->forumid] = true;
+
+                if ($filter === null || $filter($forum)) {
+                    $prefix = $depth > 0 ? str_repeat('— ', $depth) : '';
+                    $flat[] = [
+                        'forumid' => (int) $forum->forumid,
+                        'title' => $forum->title,
+                        'depth' => $depth,
+                        'label' => $prefix . $forum->title,
+                    ];
+                }
+
+                $walk((int) $forum->forumid, $depth + 1);
+            }
+        };
+
+        $walk(0, 0);
+
+        // أي قسم لم يُدرج (parentid يشير إلى قسم غير موجود) — نضيفه في النهاية.
+        foreach ($forums as $forum) {
+            if (isset($visited[$forum->forumid])) {
+                continue;
+            }
+            $visited[$forum->forumid] = true;
+            if ($filter === null || $filter($forum)) {
+                $flat[] = [
+                    'forumid' => (int) $forum->forumid,
+                    'title' => $forum->title,
+                    'depth' => 0,
+                    'label' => $forum->title,
+                ];
+            }
+        }
+
+        return collect($flat);
     }
 
     /**

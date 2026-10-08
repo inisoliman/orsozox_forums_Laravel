@@ -38,8 +38,8 @@
                     <label for="create-forumid" class="form-label fw-bold"><i class="fas fa-folder-open me-1"></i> القسم</label>
                     <select name="forumid" id="create-forumid" class="form-select form-select-dark" required>
                         @foreach($allowedForums as $forum)
-                            <option value="{{ $forum->forumid }}" @selected((int) $forum->forumid === (int) $selectedForumId)>
-                                {{ $forum->title }}
+                            <option value="{{ $forum['forumid'] }}" @selected((int) $forum['forumid'] === (int) $selectedForumId)>
+                                {{ $forum['label'] }}
                             </option>
                         @endforeach
                     </select>

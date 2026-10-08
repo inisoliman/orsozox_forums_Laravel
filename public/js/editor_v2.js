@@ -68,6 +68,273 @@ window.AppEditor = (function () {
     }
 
     /**
+     * قائمة الأيقونات المُدرَجة من شريط الأدوات.
+     * التسميات تطابق مفاتيح BBCodeParser::NAMED_ICONS.
+     */
+    const ICON_MENU = [
+        { key: 'download',  label: 'تحميل مباشر', icon: '⬇️' },
+        { key: 'pdf',       label: 'ملف PDF',      icon: '📕' },
+        { key: 'audio',     label: 'استماع',       icon: '🎧' },
+        { key: 'video',     label: 'مشاهدة فيديو',  icon: '▶️' },
+        { key: 'gallery',   label: 'ألبوم صور',    icon: '🖼️' },
+        { key: 'archive',   label: 'حزمة ملفات',   icon: '📦' },
+        { key: 'link',      label: 'رابط',         icon: '🔗' },
+        { key: 'new',       label: 'جديد',         icon: '⚡' },
+        { key: 'hot',       label: 'مميز',         icon: '🔥' },
+        { key: 'important', label: 'مهم',          icon: '❗' },
+        { key: 'gift',      label: 'هدية',         icon: '🎁' },
+        { key: 'thank',     label: 'شكراً',        icon: '❤️' },
+        { key: 'pray',      label: 'صلاة',         icon: '🙏' },
+        { key: 'info',      label: 'معلومة',       icon: 'ℹ️' },
+        { key: 'star',      label: 'نجمة',         icon: '⭐' },
+        { key: 'check',     label: 'تم',           icon: '✅' }
+    ];
+
+    /**
+     * الرموز التعبيرية (الاسميلات القديمة في vBulletin).
+     * تُدرَج بصيغة BBCode :1: .. :10: ويحوّلها BBCodeParser::convertSmilies
+     * إلى أزرار ملوّنة بديلة. التسميات تطابق SMILIE_ICONS في BBCodeParser.
+     */
+    const SMILEY_MENU = [
+        { code: ':1:',  label: 'تحميل',  icon: '⬇️' },
+        { code: ':2:',  label: 'PDF',    icon: '📕' },
+        { code: ':3:',  label: 'استماع', icon: '🎧' },
+        { code: ':4:',  label: 'مشاهدة', icon: '▶️' },
+        { code: ':5:',  label: 'صور',    icon: '🖼️' },
+        { code: ':6:',  label: 'ملفات',  icon: '📦' },
+        { code: ':7:',  label: 'رابط',   icon: '🔗' },
+        { code: ':8:',  label: 'برامج',  icon: '💻' },
+        { code: ':9:',  label: 'ألعاب',  icon: '🎮' },
+        { code: ':10:', label: 'حصري',   icon: '⭐' }
+    ];
+
+    /**
+     * رموز تعبيرية يونيكود جاهزة (تعمل مباشرة في أي محرر/عرض).
+     */
+    const EMOJI_MENU = [
+        '😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇',
+        '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚',
+        '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥳',
+        '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '😣', '😖', '😫',
+        '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶',
+        '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥',
+        '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲',
+        '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧',
+        '👍', '👎', '👏', '🙌', '🤝', '🙏', '💪', '✌️', '🤞', '👌',
+        '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '💔', '💯', '🔥',
+        '⭐', '✨', '🎉', '🎊', '🎁', '🏆', '🥇', '✅', '❌', '⚠️'
+    ];
+
+    /**
+     * الحصول على صنف ButtonView بأمان عبر أكثر من مسار حسب شكل البناء (CDN super-build / classic build).
+     * نمنع فشلًا صامتًا إذا لم يكن window.CKEDITOR.ButtonView متاحًا مباشرة.
+     */
+    function resolveButtonView(editor) {
+        if (window.CKEDITOR && window.CKEDITOR.ButtonView) {
+            return window.CKEDITOR.ButtonView;
+        }
+        // مسار بديل: استخراج الصنف من زرّ مبني مسبقًا عبر مصنع المكوّنات.
+        try {
+            const factory = editor.ui.componentFactory;
+            const sample = factory.create('bold');
+            if (sample && sample.constructor) {
+                return sample.constructor;
+            }
+        } catch (e) {
+            // نتجاهل ونكمل
+        }
+        // مسار أخير: بحث عن الصنف داخل وحدات البناء.
+        if (window.CKEDITOR && window.CKEDITOR.ui && window.CKEDITOR.ui.button && window.CKEDITOR.ui.button.View) {
+            return window.CKEDITOR.ui.button.View;
+        }
+        return null;
+    }
+
+    /**
+     * CKEditor plugin: «إدراج أيقونة» — dropdown يُدرج [icon=KEY] بضغطة واحدة.
+     * الصيغة [icon=KEY] صريحة وآمنة ولا تتعارض مع نص عادي، ويحوّلها
+     * BBCodeParser::convertNamedIcons إلى شريحة جميلة عند العرض.
+     */
+    function createIconButtonPlugin(editor) {
+        const ButtonView = resolveButtonView(editor);
+        if (!ButtonView) {
+            // البناء لا يوفّر ButtonView — نتخطى بأمان دون كسر المحرر.
+            console.warn('insertIcon: ButtonView غير متاح في هذا البناء.');
+            return;
+        }
+
+        editor.ui.componentFactory.add('insertIcon', (locale) => {
+            const view = new ButtonView(locale);
+
+            view.set({
+                label: 'إدراج أيقونة',
+                icon: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm1 11.5H9v-5h2v5zm0-6.5H9V5h2v2z"/></svg>',
+                tooltip: true,
+                withText: false
+            });
+
+            // Create the dropdown panel
+            const panel = document.createElement('div');
+            panel.className = 'ck-icon-picker';
+            panel.setAttribute('dir', 'rtl');
+            ICON_MENU.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ck-icon-picker__item';
+                btn.textContent = `${item.icon} ${item.label}`;
+                btn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    editor.model.change((writer) => {
+                        const insertPosition = editor.model.document.selection.getFirstPosition();
+                        writer.insertText(`[icon=${item.key}]`, insertPosition);
+                    });
+                    editor.editing.view.focus();
+                    hidePanel();
+                });
+                panel.appendChild(btn);
+            });
+
+            let visible = false;
+            function showPanel() {
+                if (!panel.parentNode) document.body.appendChild(panel);
+                const rect = view.element.getBoundingClientRect();
+                panel.style.position = 'fixed';
+                panel.style.top = (rect.bottom + 6) + 'px';
+                panel.style.right = (window.innerWidth - rect.right) + 'px';
+                panel.style.display = 'grid';
+                visible = true;
+            }
+            function hidePanel() {
+                panel.style.display = 'none';
+                visible = false;
+            }
+
+            view.on('execute', () => {
+                if (visible) { hidePanel(); } else { showPanel(); }
+            });
+
+            // Hide when clicking outside
+            document.addEventListener('mousedown', (e) => {
+                if (!visible) return;
+                if (panel.contains(e.target) || view.element.contains(e.target)) return;
+                hidePanel();
+            });
+
+            return view;
+        });
+    }
+
+    /**
+     * CKEditor plugin: «الرموز التعبيرية» — dropdown يُدرج الاسميلات (BBCode :1:..:10:)
+     * والرموز التعبيرية (Unicode) بضغطة واحدة.
+     *
+     * - الاسميلات :N: يحوّلها BBCodeParser::convertSmilies إلى أزرار جميلة عند العرض.
+     * - رموز Unicode تُدرَج كنص مباشر وتظهر فوراً في المحرر وفي المحتوى المحفوظ.
+     */
+    function createEmojiButtonPlugin(editor) {
+        const ButtonView = resolveButtonView(editor);
+        if (!ButtonView) {
+            console.warn('insertEmoji: ButtonView غير متاح في هذا البناء.');
+            return;
+        }
+
+        editor.ui.componentFactory.add('insertEmoji', (locale) => {
+            const view = new ButtonView(locale);
+
+            view.set({
+                label: 'الرموز التعبيرية',
+                icon: '<svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm-3.5 6a1 1 0 1 1 2 0 1 1 0 0 1-2 0zm5 0a1 1 0 1 1 2 0 1 1 0 0 1-2 0zM5.5 11.5h9a4.5 4.5 0 0 1-9 0z"/></svg>',
+                tooltip: true,
+                withText: false
+            });
+
+            // بنية اللوحة: قسم الاسميلات ثم إطار الرموز التعبيرية
+            const panel = document.createElement('div');
+            panel.className = 'ck-emoji-picker';
+            panel.setAttribute('dir', 'rtl');
+
+            const insertAtCursor = (text) => {
+                editor.model.change((writer) => {
+                    const insertPosition = editor.model.document.selection.getFirstPosition();
+                    writer.insertText(text, insertPosition);
+                });
+                editor.editing.view.focus();
+            };
+
+            // — الاسميلات (BBCode) —
+            const smileyTitle = document.createElement('div');
+            smileyTitle.className = 'ck-emoji-picker__title';
+            smileyTitle.textContent = 'أيقونات المنتدى';
+            panel.appendChild(smileyTitle);
+
+            const smileyGrid = document.createElement('div');
+            smileyGrid.className = 'ck-emoji-picker__grid';
+            SMILEY_MENU.forEach((item) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ck-emoji-picker__item';
+                btn.title = item.label;
+                btn.textContent = `${item.icon} ${item.label}`;
+                btn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    insertAtCursor(item.code);
+                    hidePanel();
+                });
+                smileyGrid.appendChild(btn);
+            });
+            panel.appendChild(smileyGrid);
+
+            // — الرموز التعبيرية (Unicode) —
+            const emojiTitle = document.createElement('div');
+            emojiTitle.className = 'ck-emoji-picker__title';
+            emojiTitle.textContent = 'رموز تعبيرية';
+            panel.appendChild(emojiTitle);
+
+            const emojiGrid = document.createElement('div');
+            emojiGrid.className = 'ck-emoji-picker__grid ck-emoji-picker__grid--emojis';
+            EMOJI_MENU.forEach((emoji) => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'ck-emoji-picker__emoji';
+                btn.textContent = emoji;
+                btn.addEventListener('click', (ev) => {
+                    ev.preventDefault();
+                    insertAtCursor(emoji);
+                });
+                emojiGrid.appendChild(btn);
+            });
+            panel.appendChild(emojiGrid);
+
+            let visible = false;
+            function showPanel() {
+                if (!panel.parentNode) document.body.appendChild(panel);
+                const rect = view.element.getBoundingClientRect();
+                panel.style.position = 'fixed';
+                panel.style.top = (rect.bottom + 6) + 'px';
+                panel.style.right = (window.innerWidth - rect.right) + 'px';
+                panel.style.display = 'block';
+                visible = true;
+            }
+            function hidePanel() {
+                panel.style.display = 'none';
+                visible = false;
+            }
+
+            view.on('execute', () => {
+                if (visible) { hidePanel(); } else { showPanel(); }
+            });
+
+            document.addEventListener('mousedown', (e) => {
+                if (!visible) return;
+                if (panel.contains(e.target) || view.element.contains(e.target)) return;
+                hidePanel();
+            });
+
+            return view;
+        });
+    }
+
+    /**
      * Initialize CKEditor 5 Super Build
      * Super Build has ALL free plugins built-in — we only remove premium ones
      */
@@ -88,7 +355,7 @@ window.AppEditor = (function () {
                 'MultiLevelList', 'ExportPdf', 'ExportWord', 'ImportWord'
             ],
 
-            extraPlugins: [createUploadAdapterPlugin(uploadUrl)],
+            extraPlugins: [createUploadAdapterPlugin(uploadUrl), createIconButtonPlugin, createEmojiButtonPlugin],
 
             language: 'ar',
 
@@ -101,7 +368,7 @@ window.AppEditor = (function () {
                     'bulletedList', 'numberedList', 'todoList', '|',
                     'outdent', 'indent', '|',
                     'link', 'uploadImage', 'insertImage', 'blockQuote',
-                    'insertTable', 'mediaEmbed', 'codeBlock', 'htmlEmbed',
+                    'insertTable', 'mediaEmbed', 'insertIcon', 'insertEmoji', 'codeBlock', 'htmlEmbed',
                     'horizontalLine', 'specialCharacters', '|',
                     'findAndReplace', 'removeFormat', 'sourceEditing', '|',
                     'undo', 'redo'

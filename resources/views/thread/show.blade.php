@@ -232,6 +232,28 @@
         @endforeach
         </div>
 
+        {{-- رابط الموضوع القصير — للنسخ والمشاركة السهلة --}}
+        @php
+            $shortLink = url('/thread/' . $thread->threadid);
+        @endphp
+        <div class="glass-panel mt-4 p-4 thread-share-box">
+            <div class="d-flex align-items-center gap-3 flex-wrap">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fas fa-link text-accent fs-5"></i>
+                    <span class="fw-bold">رابط الموضوع القصير</span>
+                </div>
+                <div class="input-group input-group-sm flex-grow-1" style="min-width:220px;max-width:560px">
+                    <input type="text" class="form-control thread-short-link-input" value="{{ $shortLink }}"
+                        readonly onclick="this.select()" aria-label="رابط الموضوع القصير">
+                    <button class="btn btn-accent thread-copy-btn" type="button"
+                        data-link="{{ $shortLink }}" title="انسخ الرابط">
+                        <i class="fas fa-copy"></i> <span>نسخ</span>
+                    </button>
+                </div>
+                <small class="text-muted-custom">انسخ الرابط وشاركه بسهولة في المواقع والتطبيقات.</small>
+            </div>
+        </div>
+
         @auth
             @if($canReply)
                 <section class="glass-panel mt-4 p-4" aria-labelledby="quick-reply-title">
@@ -336,9 +358,9 @@
                                     <div class="mb-3">
                                         <label class="form-label fw-bold">القسم الجديد</label>
                                         <select class="form-select bg-dark text-light border-secondary" id="moveForumId" required>
-                                            @foreach(\App\Models\Forum::where('displayorder', '>', 0)->get() as $f)
-                                                <option value="{{ $f->forumid }}" {{ $thread->forumid == $f->forumid ? 'selected' : '' }}>
-                                                    {{ $f->title }}</option>
+                                            @foreach(\App\Models\Forum::flatOrderedTree() as $f)
+                                                <option value="{{ $f['forumid'] }}" {{ (int) $thread->forumid === (int) $f['forumid'] ? 'selected' : '' }}>
+                                                    {{ $f['label'] }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -463,6 +485,47 @@
 @push('scripts')
     {{-- YouTube Lite Embed — for ALL users (guests + logged in) --}}
     <script src="{{ asset('js/yt-lite.js') }}"></script>
+
+    {{-- نسخ رابط الموضوع القصير — لكل الزوار والأعضاء --}}
+    <script>
+        (function () {
+            /* زر نسخ الرابط القصير: يستخدم Clipboard API مع fallback للتوافق */
+            document.addEventListener('click', function (e) {
+                var btn = e.target.closest('.thread-copy-btn');
+                if (!btn) return;
+
+                var link = btn.getAttribute('data-link') || '';
+                var label = btn.querySelector('span');
+                var originalText = label ? label.textContent : 'نسخ';
+
+                function done() {
+                    if (label) label.textContent = 'تم النسخ ✓';
+                    btn.classList.add('copied');
+                    setTimeout(function () {
+                        if (label) label.textContent = originalText;
+                        btn.classList.remove('copied');
+                    }, 1800);
+                }
+
+                if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard.writeText(link).then(done).catch(function () { fallback(link, done); });
+                } else {
+                    fallback(link, done);
+                }
+
+                function fallback(text, cb) {
+                    var input = btn.closest('.thread-share-box').querySelector('.thread-short-link-input');
+                    if (input) {
+                        input.removeAttribute('readonly');
+                        input.select();
+                        input.setSelectionRange(0, 99999);
+                        try { document.execCommand('copy'); cb(); } catch (err) { /* تجاهل */ }
+                        input.setAttribute('readonly', 'readonly');
+                    }
+                }
+            });
+        })();
+    </script>
 
     @auth
         {{-- CKEditor 5 Super Build — includes ALL free plugins --}}

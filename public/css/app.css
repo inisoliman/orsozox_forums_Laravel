@@ -744,6 +744,174 @@ a:hover {
 .bb-download-btn.bb-dl-indigo { background-image: linear-gradient(135deg, #6366f1, #3730a3); }
 .bb-download-btn.bb-dl-gold   { background-image: linear-gradient(135deg, #fbbf24, #b45309); }
 
+/* ===================== CKEditor icon picker (insert icon button) ===================== */
+.ck-icon-picker {
+    display: none;
+    position: fixed;
+    z-index: 2147483000;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 4px;
+    padding: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border-radius: var(--radius-sm, 10px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+    direction: rtl;
+}
+
+.ck-icon-picker__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main, #1e293b);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: right;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.ck-icon-picker__item:hover {
+    background: rgba(2, 136, 209, 0.12);
+    transform: translateX(-2px);
+}
+
+[data-theme="dark"] .ck-icon-picker {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .ck-icon-picker__item {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .ck-icon-picker__item:hover {
+    background: rgba(255, 213, 79, 0.15);
+}
+
+/* ===================== CKEditor emoji picker (insert emoji button) ===================== */
+.ck-emoji-picker {
+    display: none;
+    position: fixed;
+    z-index: 2147483000;
+    padding: 10px;
+    width: min(420px, 92vw);
+    max-height: 380px;
+    overflow-y: auto;
+    background: var(--bg-card, #fff);
+    border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+    border-radius: var(--radius-sm, 10px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+    direction: rtl;
+}
+
+.ck-emoji-picker__title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--text-muted, #64748b);
+    margin: 6px 2px;
+}
+
+.ck-emoji-picker__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+    gap: 4px;
+}
+
+.ck-emoji-picker__grid--emojis {
+    grid-template-columns: repeat(auto-fill, minmax(38px, 1fr));
+    gap: 2px;
+}
+
+.ck-emoji-picker__item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 10px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-main, #1e293b);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-align: right;
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.ck-emoji-picker__item:hover {
+    background: rgba(2, 136, 209, 0.12);
+    transform: translateX(-2px);
+}
+
+.ck-emoji-picker__emoji {
+    border: none;
+    background: transparent;
+    font-size: 1.35rem;
+    line-height: 1;
+    padding: 5px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.12s ease, transform 0.12s ease;
+}
+
+.ck-emoji-picker__emoji:hover {
+    background: rgba(2, 136, 209, 0.12);
+    transform: scale(1.18);
+}
+
+[data-theme="dark"] .ck-emoji-picker {
+    background: #1e293b;
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="dark"] .ck-emoji-picker__item {
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .ck-emoji-picker__item:hover,
+[data-theme="dark"] .ck-emoji-picker__emoji:hover {
+    background: rgba(255, 213, 79, 0.15);
+}
+
+/* ===================== Forum search box + thread share box ===================== */
+.forum-search-box {
+    min-width: 230px;
+    max-width: 320px;
+    flex: 0 1 320px;
+}
+
+.forum-search-box .form-control {
+    border-start-start-radius: var(--radius-sm, 10px) !important;
+    border-end-start-radius: var(--radius-sm, 10px) !important;
+}
+
+.forum-search-box .btn {
+    border-start-end-radius: var(--radius-sm, 10px) !important;
+    border-end-end-radius: var(--radius-sm, 10px) !important;
+}
+
+.thread-share-box .thread-short-link-input {
+    direction: ltr;
+    text-align: left;
+    font-size: 0.85rem;
+    background: var(--bg-input, #f8fafc);
+    color: var(--text-main, #1e293b);
+}
+
+.thread-copy-btn.copied {
+    background-image: linear-gradient(135deg, #10b981, #047857) !important;
+    border-color: #10b981 !important;
+}
+
 /* ===================== Profile ===================== */
 .profile-card {
     background: var(--bg-card);

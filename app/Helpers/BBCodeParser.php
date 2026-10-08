@@ -167,6 +167,9 @@ class BBCodeParser
         // رموز الأيقونات القديمة (كانت صور gif حُذفت) → أزرار تحميل جميلة
         $text = self::convertSmilies($text);
 
+        // أيقونات مسمّاة إضافية [icon=KEY] → شرائح جمالية
+        $text = self::convertNamedIcons($text);
+
         return $text;
     }
 
@@ -190,6 +193,31 @@ class BBCodeParser
         ':8:'  => ['icon' => 'fa-palette',         'label' => 'تصاميم',   'tone' => 'pink'],
         ':9:'  => ['icon' => 'fa-gamepad',         'label' => 'ألعاب',    'tone' => 'indigo'],
         ':10:' => ['icon' => 'fa-star',            'label' => 'حصري',     'tone' => 'gold'],
+    ];
+
+    /**
+     * أيقونات جمالية مسمّاة تُكتب بالصيغة [icon=KEY] — تُدرَج من شريط أدوات المحرر.
+     * آمنة تماماً (لا تتعارض مع نص عادي لأن صيغتها BBCode صريحة).
+     *
+     * @var array<string, array{icon: string, label: string, tone: string}>
+     */
+    private const NAMED_ICONS = [
+        'download'  => ['icon' => 'fa-cloud-arrow-down', 'label' => 'تحميل مباشر', 'tone' => 'blue'],
+        'pdf'       => ['icon' => 'fa-file-pdf',         'label' => 'PDF',         'tone' => 'red'],
+        'audio'     => ['icon' => 'fa-headphones',       'label' => 'استماع',      'tone' => 'green'],
+        'video'     => ['icon' => 'fa-circle-play',      'label' => 'مشاهدة',      'tone' => 'violet'],
+        'gallery'   => ['icon' => 'fa-images',           'label' => 'ألبوم صور',   'tone' => 'pink'],
+        'archive'   => ['icon' => 'fa-box-archive',      'label' => 'حزمة ملفات',  'tone' => 'slate'],
+        'link'      => ['icon' => 'fa-link',             'label' => 'رابط',        'tone' => 'cyan'],
+        'new'       => ['icon' => 'fa-bolt',             'label' => 'جديد',        'tone' => 'amber'],
+        'hot'       => ['icon' => 'fa-fire',             'label' => 'مميز',        'tone' => 'gold'],
+        'important' => ['icon' => 'fa-circle-exclamation', 'label' => 'مهم',       'tone' => 'indigo'],
+        'gift'      => ['icon' => 'fa-gift',             'label' => 'هدية',        'tone' => 'pink'],
+        'thank'     => ['icon' => 'fa-heart',            'label' => 'شكراً',       'tone' => 'red'],
+        'pray'      => ['icon' => 'fa-hands-praying',    'label' => 'صلاة',        'tone' => 'amber'],
+        'info'      => ['icon' => 'fa-circle-info',      'label' => 'معلومة',      'tone' => 'blue'],
+        'star'      => ['icon' => 'fa-star',             'label' => 'نجمة',        'tone' => 'gold'],
+        'check'     => ['icon' => 'fa-circle-check',     'label' => 'تم',          'tone' => 'green'],
     ];
 
     /**
@@ -258,6 +286,57 @@ class BBCodeParser
         }
 
         return $result;
+    }
+
+    /**
+     * تحويل الأيقونات المسمّاة [icon=KEY] إلى شرائح جمالية.
+     * آمنة لأن الصيغة BBCode صريحة (لا تتعارض مع نص عادي).
+     */
+    public static function convertNamedIcons(string $html): string
+    {
+        if ($html === '' || stripos($html, '[icon=') === false) {
+            return $html;
+        }
+
+        // نحمي كتل الكود كما في convertSmilies.
+        $vault = [];
+        $protected = preg_replace_callback(
+            '/<(pre|code|textarea|script)\b[^>]*>.*?<\/\1>/isu',
+            function ($m) use (&$vault) {
+                $key = "\x00ICON_KEEP_" . count($vault) . "\x00";
+                $vault[$key] = $m[0];
+                return $key;
+            },
+            $html
+        );
+
+        if ($protected === null) {
+            return $html;
+        }
+
+        $protected = preg_replace_callback(
+            '/\[icon=([a-z0-9_]+)\]/i',
+            function ($m) {
+                $key = strtolower($m[1]);
+                $meta = self::NAMED_ICONS[$key] ?? null;
+                if ($meta === null) {
+                    return $m[0]; // مفتاح غير معروف → اتركه كما هو
+                }
+
+                return self::renderDownloadButton($meta['icon'], $meta['label'], $meta['tone']);
+            },
+            $protected
+        );
+
+        if ($protected === null) {
+            return $html;
+        }
+
+        if ($vault !== []) {
+            $protected = strtr($protected, $vault);
+        }
+
+        return $protected;
     }
 
     /**

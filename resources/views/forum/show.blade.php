@@ -31,16 +31,29 @@
 
         {{-- Forum Header --}}
         <div class="glass-panel mb-4">
-            <div class="p-4 d-flex align-items-center gap-3">
+            <div class="p-4 d-flex align-items-center gap-3 flex-wrap">
                 <div class="forum-icon-wrapper" style="width:60px;height:60px;font-size:1.8rem">
                     <i class="fas fa-folder-open"></i>
                 </div>
-                <div>
+                <div class="flex-grow-1">
                     <h1 class="h3 fw-bold mb-1">{{ $forum->title }}</h1>
                     @if($forum->description)
                         <p class="text-muted mb-0">{{ strip_tags($forum->description) }}</p>
                     @endif
                 </div>
+
+                {{-- مربع البحث داخل القسم — يبحث داخل هذا القسم فقط --}}
+                <form action="{{ route('search') }}" method="GET" class="forum-search-box" role="search">
+                    <input type="hidden" name="forumid" value="{{ $forum->forumid }}">
+                    <div class="input-group input-group-sm">
+                        <input type="search" name="q" class="form-control"
+                            placeholder="ابحث في «{{ Str::limit($forum->title, 20) }}»..." required
+                            minlength="3" aria-label="بحث في هذا القسم">
+                        <button class="btn btn-accent" type="submit" title="ابحث في هذا القسم">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -119,9 +132,9 @@
                     @if($canBulkMove)
                         <select id="bulk-target-forum" class="form-select form-select-sm d-none" style="max-width:260px">
                             <option value="">اختر القسم الهدف</option>
-                            @foreach(\App\Models\Forum::active()->ordered()->get() as $targetForum)
-                                @if($targetForum->forumid !== $forum->forumid)
-                                    <option value="{{ $targetForum->forumid }}">{{ $targetForum->title }}</option>
+                            @foreach(\App\Models\Forum::flatOrderedTree() as $targetForum)
+                                @if($targetForum['forumid'] !== $forum->forumid)
+                                    <option value="{{ $targetForum['forumid'] }}">{{ $targetForum['label'] }}</option>
                                 @endif
                             @endforeach
                         </select>

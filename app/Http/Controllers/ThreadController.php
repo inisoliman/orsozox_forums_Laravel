@@ -27,11 +27,10 @@ class ThreadController extends Controller
         $usergroupId = (int) auth()->user()->usergroupid;
 
         // الأقسام التي يملك المستخدم ترخيص الإنشاء فيها (حسب مجموعته)
-        $allowedForums = Forum::active()
-            ->ordered()
-            ->get()
-            ->filter(fn(Forum $forum) => ForumPermission::canPostNew($forum->forumid, $usergroupId))
-            ->values();
+        // نعرضها مرتّبة هرميّاً (قسم رئيسي ثم أبناؤه) لتطابق شجرة الرئيسية.
+        $allowedForums = Forum::flatOrderedTree(function (Forum $forum) use ($usergroupId) {
+            return ForumPermission::canPostNew($forum->forumid, $usergroupId);
+        });
 
         if ($allowedForums->isEmpty()) {
             return response()->view('errors.forbidden', [
@@ -40,7 +39,7 @@ class ThreadController extends Controller
             ]);
         }
 
-        $selectedForumId = (int) $request->query('forum', $allowedForums->first()->forumid);
+        $selectedForumId = (int) $request->query('forum', $allowedForums->first()['forumid']);
 
         return view('thread.create', compact('allowedForums', 'selectedForumId'));
     }

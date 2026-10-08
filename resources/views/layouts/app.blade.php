@@ -104,13 +104,21 @@
         }
 
         /* Responsive Embeds & Content Fix */
-        .post-content-body iframe,
         .post-content-body object,
         .post-content-body embed,
         .post-content-body video,
         .post-content-body img {
             max-width: 100% !important;
             height: auto !important;
+            border-radius: 8px;
+        }
+
+        /* YouTube Lite embed: don't force height:auto — the iframe must fill the
+           16/9 .yt-lite container. Otherwise it collapses to ~150px (tiny player). */
+        .post-content-body .yt-lite iframe,
+        .post-content-body iframe.yt-lite-frame {
+            max-width: 100% !important;
+            height: 100% !important;
             border-radius: 8px;
         }
 
@@ -225,6 +233,10 @@
                                     @foreach($navForum->children as $child)
                                         <li><a class="dropdown-item pe-4 small" href="{{ $child->url }}">↳ {{ $child->title }}</a>
                                         </li>
+                                        @foreach($child->children as $grandChild)
+                                            <li><a class="dropdown-item pe-5 small text-muted" href="{{ $grandChild->url }}">&nbsp;&nbsp;↳ {{ $grandChild->title }}</a>
+                                            </li>
+                                        @endforeach
                                     @endforeach
                                     <li>
                                         <hr class="dropdown-divider">

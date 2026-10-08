@@ -103,8 +103,9 @@ class Post extends Model
         return Cache::remember($cacheKey, 86400, function () use ($text) {
             if (str_starts_with($text, '<!-- HTML -->')) {
                 $parsed = str_replace('<!-- HTML -->', '', $text);
-                // محتوى المحرر الجديد (HTML) — نحوّل رموز الأيقونات القديمة فيه أيضاً
+                // محتوى المحرر الجديد (HTML) — نحوّل رموز الأيقونات القديمة والأيقونات المسمّاة فيه أيضاً
                 $parsed = BBCodeParser::convertSmilies($parsed);
+                $parsed = BBCodeParser::convertNamedIcons($parsed);
             } else {
                 $parsed = BBCodeParser::parse($text);
             }

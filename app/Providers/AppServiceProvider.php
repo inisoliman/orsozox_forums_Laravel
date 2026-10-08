@@ -59,13 +59,19 @@ class AppServiceProvider extends ServiceProvider
 
         // Share forums globally for navbar
         View::composer('layouts.app', function ($view) {
-            $forums = Cache::remember('nav_forums', 3600, function () {
+            $forums = Cache::remember('nav_forums_v2', 3600, function () {
+                // نفس تسلسل الرئيسية: أقسام رئيسية → فرعية → فرعية ثانية (3 مستويات)
+                // مع نفس الترتيب (active + ordered) ليتطابق ترتيب القائمة مع الرئيسية.
                 return Forum::active()
                     ->root()
                     ->ordered()
                     ->with([
                         'children' => function ($q) {
-                            $q->active()->ordered();
+                            $q->active()->ordered()->with([
+                                'children' => function ($q2) {
+                                    $q2->active()->ordered();
+                                }
+                            ]);
                         }
                     ])
                     ->get();

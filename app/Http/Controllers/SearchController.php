@@ -65,9 +65,12 @@ class SearchController extends Controller
         $results = null;
         $excerpts = [];
 
-        // Get forums list for filter dropdown
-        $forums = Cache::remember('search_active_forums', 3600, function () {
-            return Forum::active()->ordered()->get(['forumid', 'title']);
+        // Get forums list for filter dropdown (hierarchical order matching homepage)
+        $forums = Cache::remember('search_active_forums_v2', 3600, function () {
+            return Forum::flatOrderedTree()->map(fn($f) => [
+                'forumid' => $f['forumid'],
+                'title' => $f['label'],
+            ])->all();
         });
 
         if (!empty($query)) {

@@ -2,10 +2,10 @@
 
 .yt-lite {
     position: relative;
-    display: flow-root;
+    display: block;
     clear: both;
     width: 100%;
-    max-width: 720px;
+    max-width: 860px;
     margin: 20px auto;
     background-color: #000;
     aspect-ratio: 16 / 9;
@@ -102,9 +102,13 @@
 
 /* Iframe and Fade-in Animation */
 .yt-lite iframe {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
+    min-height: 100%;
     border: none;
+    display: block;
     animation: yt-fade-in 0.5s ease;
 }
 

@@ -23,6 +23,10 @@ class YouTubeLiteEmbedService
             return $content;
         }
 
+        // Step 0: Render the safe YouTube markers produced by HtmlSanitizer
+        // (from iframes/oembed inserted via the editor) into lite cards.
+        $content = $this->renderMarkers($content);
+
         // Step 1: Handle [ame]...[/ame] BBCode tags (legacy vBulletin)
         $content = $this->handleAmeBBCode($content);
 
@@ -76,6 +80,28 @@ class YouTubeLiteEmbedService
         );
 
         return $content;
+    }
+
+    /**
+     * Render safe YouTube markers (produced by HtmlSanitizer from editor iframes)
+     * into the lite preview card.
+     *
+     * Marker form:  <div class="yt-embed" data-youtube-id="XXXXXXXXXXX"></div>
+     */
+    private function renderMarkers(string $content): string
+    {
+        if (stripos($content, 'data-youtube-id') === false) {
+            return $content;
+        }
+
+        return preg_replace_callback(
+            '#<div\b[^>]*class\s*=\s*["\'][^"\']*\byt-embed\b[^"\']*["\'][^>]*\bdata-youtube-id\s*=\s*["\']([a-zA-Z0-9_-]{11})["\'][^>]*>\s*</div>#si',
+            function ($matches) {
+                $videoId = $matches[1];
+                return $this->getLiteEmbedHtml($videoId, 'https://www.youtube.com/watch?v=' . $videoId);
+            },
+            $content
+        ) ?? $content;
     }
 
     /**
